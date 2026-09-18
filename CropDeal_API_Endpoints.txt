@@ -1,0 +1,5604 @@
+================================================================================
+                    CROPDEAL MICROSERVICES API REFERENCE
+================================================================================
+Document Version: 2.0
+Architecture: Spring Boot Microservices, Spring Cloud Gateway, Eureka Server,
+              Spring Cloud Config Server, RabbitMQ Event-Driven Architecture,
+              MySQL per-service Databases, Resillience4j Circuit Breaker & Saga.
+
+Base Gateway URL: http://localhost:8080 (Docker / Localhost)
+Direct Microservice Ports:
+  • Config Server:        8888
+  • Eureka Server:        8761
+  • API Gateway:          8080
+  • Auth Service:         8081
+  • User Service:         8082
+  • Crop Service:         8083
+  • Price Service:        8084
+  • Order Service:        8085
+  • Negotiation Service:  8086
+  • Invoice Service:      8087
+  • Payment Service:      8088
+  • Wallet Service:       8089
+  • Bidding Service:      8090
+  • Delivery Service:     8091
+  • Notification Service: 8092
+  • Review Service:       8093
+  • Chatbot Service:      8094
+  • Report Service:       8095
+  • Audit Service:        8096
+
+Security & Authentication:
+  • JWT Bearer Token (Authorization: Bearer <JWT_TOKEN>)
+  • Public Endpoints: /api/v1/auth/**, /api/v1/crops/search, /api/v1/crops/all,
+                      /api/v1/prices/mandi, /api/v1/auctions/live, /api/v1/chatbot/ask
+  • Role-Based Access Control: FARMER, DEALER, DELIVERY_PARTNER, ADMIN
+
+Standard Error Response Format:
+{
+  "timestamp": "2026-09-18T19:00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Specific error description",
+  "path": "/api/v1/..."
+}
+
+================================================================================
+SERVICE: AUTH SERVICE
+================================================================================
+
+============================================================
+SERVICE: AUTH SERVICE
+REGISTER USER
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auth/register
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Request JSON:
+{
+  "fullName": "Ramesh Kumar",
+  "email": "ramesh.farmer@cropdeal.com",
+  "password": "Password@123",
+  "mobileNumber": "9876543210",
+  "role": "FARMER"
+}
+REQUIRED FIELDS:
+fullName: String
+email: String
+password: String
+mobileNumber: String
+role: String (Enum: FARMER, DEALER, DELIVERY_PARTNER, ADMIN)
+OPTIONAL FIELDS:
+None
+FIELD DATA TYPES & ENUMS:
+fullName: String
+email: String (Valid email format)
+password: String (Min 6 characters)
+mobileNumber: String (10 digits)
+role: Enum [FARMER, DEALER, DELIVERY_PARTNER, ADMIN]
+Example Request:
+POST /api/v1/auth/register
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "userId": 1,
+  "email": "ramesh.farmer@cropdeal.com",
+  "role": "FARMER",
+  "fullName": "Ramesh Kumar"
+}
+Response fields and data types:
+token: String
+refreshToken: String
+userId: Long
+email: String
+role: String
+fullName: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "timestamp": "2026-09-18T19:00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Email is already registered"
+}
+EXPLANATION:
+Registers a new platform user (Farmer, Dealer, or Delivery Partner) and generates an initial JWT authentication token.
+============================================================
+
+============================================================
+SERVICE: AUTH SERVICE
+LOGIN USER
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auth/login
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Request JSON:
+{
+  "email": "ramesh.farmer@cropdeal.com",
+  "password": "Password@123"
+}
+REQUIRED FIELDS:
+email: String
+password: String
+OPTIONAL FIELDS:
+None
+FIELD DATA TYPES:
+email: String
+password: String
+Example Request:
+POST /api/v1/auth/login
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "userId": 1,
+  "email": "ramesh.farmer@cropdeal.com",
+  "role": "FARMER",
+  "fullName": "Ramesh Kumar"
+}
+Response fields and data types:
+token: String
+refreshToken: String
+userId: Long
+email: String
+role: String
+fullName: String
+ERROR RESPONSES:
+401 UNAUTHORIZED:
+{
+  "timestamp": "2026-09-18T19:00:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Invalid email or password"
+}
+EXPLANATION:
+Authenticates an existing user and returns JWT token and user profile metadata.
+============================================================
+
+============================================================
+SERVICE: AUTH SERVICE
+VALIDATE TOKEN
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auth/validate
+AUTHENTICATION:
+Not Required
+INPUT:
+Query Parameters:
+token: String
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/auth/validate?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "valid": true,
+  "email": "ramesh.farmer@cropdeal.com",
+  "role": "FARMER",
+  "userId": 1
+}
+Response fields and data types:
+valid: Boolean
+email: String
+role: String
+userId: Long
+ERROR RESPONSES:
+401 UNAUTHORIZED:
+{
+  "valid": false,
+  "message": "Token expired or invalid"
+}
+EXPLANATION:
+Validates the authenticity, signature, and expiration of a JWT token.
+============================================================
+
+============================================================
+SERVICE: AUTH SERVICE
+REFRESH TOKEN
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auth/refresh
+AUTHENTICATION:
+Not Required
+INPUT:
+Query Parameters:
+refreshToken: String
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/auth/refresh?refreshToken=7c9e6679-7425-40de-944b-e07fc1f90ae7
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "userId": 1,
+  "email": "ramesh.farmer@cropdeal.com",
+  "role": "FARMER",
+  "fullName": "Ramesh Kumar"
+}
+Response fields and data types:
+token: String
+refreshToken: String
+userId: Long
+email: String
+role: String
+fullName: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid or expired refresh token"
+}
+EXPLANATION:
+Issues a new JWT access token using a valid refresh token.
+============================================================
+
+============================================================
+SERVICE: AUTH SERVICE
+REGISTER ADMIN
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auth/admin/register
+AUTHENTICATION:
+Not Required / Admin Bootstrap
+INPUT:
+Request Headers:
+Content-Type: application/json
+Request JSON:
+{
+  "fullName": "System Administrator",
+  "email": "admin@cropdeal.com",
+  "password": "AdminPassword@123",
+  "mobileNumber": "9999999999",
+  "role": "ADMIN"
+}
+REQUIRED FIELDS:
+fullName: String
+email: String
+password: String
+mobileNumber: String
+role: String (ADMIN)
+OPTIONAL FIELDS:
+None
+Example Request:
+POST /api/v1/auth/admin/register
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "userId": 100,
+  "email": "admin@cropdeal.com",
+  "role": "ADMIN",
+  "fullName": "System Administrator"
+}
+Response fields and data types:
+token: String
+refreshToken: String
+userId: Long
+email: String
+role: String
+fullName: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Admin email already exists"
+}
+EXPLANATION:
+Registers a new platform administrator account.
+============================================================
+
+============================================================
+SERVICE: AUTH SERVICE
+ADMIN LOGIN
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auth/admin/login
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Request JSON:
+{
+  "email": "admin@cropdeal.com",
+  "password": "AdminPassword@123"
+}
+REQUIRED FIELDS:
+email: String
+password: String
+OPTIONAL FIELDS:
+None
+Example Request:
+POST /api/v1/auth/admin/login
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "userId": 100,
+  "email": "admin@cropdeal.com",
+  "role": "ADMIN",
+  "fullName": "System Administrator"
+}
+Response fields and data types:
+token: String
+refreshToken: String
+userId: Long
+email: String
+role: String
+fullName: String
+ERROR RESPONSES:
+401 UNAUTHORIZED:
+{
+  "message": "Invalid admin credentials"
+}
+EXPLANATION:
+Authenticates an administrator and returns a JWT access token with ADMIN privileges.
+============================================================
+
+
+================================================================================
+SERVICE: USER SERVICE
+================================================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET USER BY ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/{id}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+id: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "email": "ramesh.farmer@cropdeal.com",
+  "mobileNumber": "9876543210",
+  "role": "FARMER",
+  "status": "ACTIVE",
+  "verified": true,
+  "createdAt": "2026-09-18T10:00:00",
+  "address": "123 Green Valley Farm",
+  "city": "Gobichettipalayam",
+  "state": "Tamil Nadu",
+  "pincode": "638452",
+  "accountNumber": "918273645012",
+  "ifscCode": "HDFC0001234",
+  "bankName": "HDFC Bank",
+  "branchName": "Gobi Branch"
+}
+Response fields and data types:
+id: Long
+fullName: String
+email: String
+mobileNumber: String
+role: String (Enum: FARMER, DEALER, DELIVERY_PARTNER, ADMIN)
+status: String (Enum: ACTIVE, INACTIVE, SUSPENDED)
+verified: Boolean
+createdAt: String (ISO DateTime)
+address: String
+city: String
+state: String
+pincode: String
+accountNumber: String
+ifscCode: String
+bankName: String
+branchName: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with id: 1"
+}
+EXPLANATION:
+Fetches user details and banking/address profile by their unique user ID.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET USER BY EMAIL
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/email/{email}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+email: String
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/email/ramesh.farmer@cropdeal.com
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "email": "ramesh.farmer@cropdeal.com",
+  "mobileNumber": "9876543210",
+  "role": "FARMER",
+  "status": "ACTIVE",
+  "verified": true,
+  "createdAt": "2026-09-18T10:00:00",
+  "address": "123 Green Valley Farm",
+  "city": "Gobichettipalayam",
+  "state": "Tamil Nadu",
+  "pincode": "638452",
+  "accountNumber": "918273645012",
+  "ifscCode": "HDFC0001234",
+  "bankName": "HDFC Bank",
+  "branchName": "Gobi Branch"
+}
+Response fields and data types:
+id: Long
+fullName: String
+email: String
+mobileNumber: String
+role: String
+status: String
+verified: Boolean
+createdAt: String
+address: String
+city: String
+state: String
+pincode: String
+accountNumber: String
+ifscCode: String
+bankName: String
+branchName: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with email: ramesh.farmer@cropdeal.com"
+}
+EXPLANATION:
+Retrieves user account and profile information by email address.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET USER BY MOBILE NUMBER
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/mobile/{mobileNumber}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+mobileNumber: String
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/mobile/9876543210
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "email": "ramesh.farmer@cropdeal.com",
+  "mobileNumber": "9876543210",
+  "role": "FARMER",
+  "status": "ACTIVE",
+  "verified": true,
+  "createdAt": "2026-09-18T10:00:00",
+  "address": "123 Green Valley Farm",
+  "city": "Gobichettipalayam",
+  "state": "Tamil Nadu",
+  "pincode": "638452",
+  "accountNumber": "918273645012",
+  "ifscCode": "HDFC0001234",
+  "bankName": "HDFC Bank",
+  "branchName": "Gobi Branch"
+}
+Response fields and data types:
+id: Long
+fullName: String
+email: String
+mobileNumber: String
+role: String
+status: String
+verified: Boolean
+createdAt: String
+address: String
+city: String
+state: String
+pincode: String
+accountNumber: String
+ifscCode: String
+bankName: String
+branchName: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with mobile: 9876543210"
+}
+EXPLANATION:
+Retrieves user profile details using the registered 10-digit mobile number.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET USERS BY ROLE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/role/{role}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+role: String (Enum: FARMER, DEALER, DELIVERY_PARTNER, ADMIN)
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/role/FARMER
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "fullName": "Ramesh Kumar",
+    "email": "ramesh.farmer@cropdeal.com",
+    "mobileNumber": "9876543210",
+    "role": "FARMER",
+    "status": "ACTIVE",
+    "verified": true,
+    "createdAt": "2026-09-18T10:00:00",
+    "address": "123 Green Valley Farm",
+    "city": "Gobichettipalayam",
+    "state": "Tamil Nadu",
+    "pincode": "638452"
+  }
+]
+Response fields and data types:
+Array of User Response Objects
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid user role specified"
+}
+EXPLANATION:
+Lists all users filtered by their role in the system.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET ALL USERS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users
+AUTHENTICATION:
+Required
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "fullName": "Ramesh Kumar",
+    "email": "ramesh.farmer@cropdeal.com",
+    "mobileNumber": "9876543210",
+    "role": "FARMER",
+    "status": "ACTIVE",
+    "verified": true,
+    "createdAt": "2026-09-18T10:00:00",
+    "address": "123 Green Valley Farm",
+    "city": "Gobichettipalayam",
+    "state": "Tamil Nadu",
+    "pincode": "638452"
+  },
+  {
+    "id": 2,
+    "fullName": "Anita Sharma",
+    "email": "anita.dealer@cropdeal.com",
+    "mobileNumber": "9123456780",
+    "role": "DEALER",
+    "status": "ACTIVE",
+    "verified": true,
+    "createdAt": "2026-09-18T10:05:00",
+    "address": "45 Market Yard",
+    "city": "Erode",
+    "state": "Tamil Nadu",
+    "pincode": "638001"
+  }
+]
+Response fields and data types:
+Array of User Response Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Failed to fetch users"
+}
+EXPLANATION:
+Retrieves a complete list of all registered users across all roles.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET ALL USERS (ALIAS)
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/all
+AUTHENTICATION:
+Required
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/all
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "fullName": "Ramesh Kumar",
+    "email": "ramesh.farmer@cropdeal.com",
+    "mobileNumber": "9876543210",
+    "role": "FARMER",
+    "status": "ACTIVE",
+    "verified": true
+  }
+]
+Response fields and data types:
+Array of User Response Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Failed to fetch users"
+}
+EXPLANATION:
+Alternative endpoint to retrieve all registered users across all roles.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+UPDATE USER PROFILE
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/{id}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+id: Long
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "fullName": "Ramesh Kumar",
+  "mobileNumber": "9876543210",
+  "address": "123 Green Valley Farm, North Wing",
+  "city": "Gobichettipalayam",
+  "state": "Tamil Nadu",
+  "pincode": "638452",
+  "accountNumber": "918273645012",
+  "ifscCode": "HDFC0001234",
+  "bankName": "HDFC Bank",
+  "branchName": "Gobi Branch"
+}
+REQUIRED FIELDS:
+fullName: String
+mobileNumber: String
+OPTIONAL FIELDS:
+address: String
+city: String
+state: String
+pincode: String
+accountNumber: String
+ifscCode: String
+bankName: String
+branchName: String
+FIELD DATA TYPES:
+fullName: String
+mobileNumber: String
+address: String
+city: String
+state: String
+pincode: String
+accountNumber: String
+ifscCode: String
+bankName: String
+branchName: String
+Example Request:
+PUT /api/v1/users/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "email": "ramesh.farmer@cropdeal.com",
+  "mobileNumber": "9876543210",
+  "role": "FARMER",
+  "status": "ACTIVE",
+  "verified": true,
+  "address": "123 Green Valley Farm, North Wing",
+  "city": "Gobichettipalayam",
+  "state": "Tamil Nadu",
+  "pincode": "638452",
+  "accountNumber": "918273645012",
+  "ifscCode": "HDFC0001234",
+  "bankName": "HDFC Bank",
+  "branchName": "Gobi Branch"
+}
+Response fields and data types:
+id: Long
+fullName: String
+email: String
+mobileNumber: String
+role: String
+status: String
+verified: Boolean
+address: String
+city: String
+state: String
+pincode: String
+accountNumber: String
+ifscCode: String
+bankName: String
+branchName: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with id: 1"
+}
+EXPLANATION:
+Updates personal contact details, location, and banking information for any user role.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+UPDATE USER STATUS
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/status/{id}
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+id: Long
+Query Parameters:
+status: String (Enum: ACTIVE, INACTIVE, SUSPENDED)
+Request Body:
+No JSON Body
+Example Request:
+PUT /api/v1/users/status/1?status=ACTIVE
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "email": "ramesh.farmer@cropdeal.com",
+  "status": "ACTIVE"
+}
+Response fields and data types:
+id: Long
+fullName: String
+email: String
+status: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with id: 1"
+}
+EXPLANATION:
+Updates the account status (ACTIVE, INACTIVE, SUSPENDED) of a user.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+DELETE USER
+HTTP METHOD:
+DELETE
+ENDPOINT:
+/api/v1/users/{id}
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+id: Long
+Request Body:
+No JSON Body
+Example Request:
+DELETE /api/v1/users/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "message": "User deleted successfully"
+}
+Response fields and data types:
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with id: 1"
+}
+EXPLANATION:
+Permanently removes a user account from the system.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET FARMER PROFILE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/profile/farmer/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/profile/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "userId": 1,
+  "farmSizeAcres": 15.5,
+  "primaryCrops": "Tomato, Onion, Sugarcane",
+  "soilType": "Red Loam",
+  "irrigationSource": "Borewell & Canal",
+  "organicCertified": true,
+  "kisanCreditCardNumber": "KCC-TN-2024-9981"
+}
+Response fields and data types:
+id: Long
+userId: Long
+farmSizeAcres: Double
+primaryCrops: String
+soilType: String
+irrigationSource: String
+organicCertified: Boolean
+kisanCreditCardNumber: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Farmer profile not found for user: 1"
+}
+EXPLANATION:
+Fetches agronomy and farm details for a registered farmer.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+UPDATE FARMER PROFILE
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/profile/farmer/{userId}
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "farmSizeAcres": 15.5,
+  "primaryCrops": "Tomato, Onion, Sugarcane",
+  "soilType": "Red Loam",
+  "irrigationSource": "Borewell & Canal",
+  "organicCertified": true,
+  "kisanCreditCardNumber": "KCC-TN-2024-9981"
+}
+REQUIRED FIELDS:
+farmSizeAcres: Double
+primaryCrops: String
+OPTIONAL FIELDS:
+soilType: String
+irrigationSource: String
+organicCertified: Boolean
+kisanCreditCardNumber: String
+FIELD DATA TYPES:
+farmSizeAcres: Double
+primaryCrops: String
+soilType: String
+irrigationSource: String
+organicCertified: Boolean
+kisanCreditCardNumber: String
+Example Request:
+PUT /api/v1/users/profile/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "userId": 1,
+  "farmSizeAcres": 15.5,
+  "primaryCrops": "Tomato, Onion, Sugarcane",
+  "soilType": "Red Loam",
+  "irrigationSource": "Borewell & Canal",
+  "organicCertified": true,
+  "kisanCreditCardNumber": "KCC-TN-2024-9981"
+}
+Response fields and data types:
+id: Long
+userId: Long
+farmSizeAcres: Double
+primaryCrops: String
+soilType: String
+irrigationSource: String
+organicCertified: Boolean
+kisanCreditCardNumber: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid farm size or parameters"
+}
+EXPLANATION:
+Creates or updates farm specifications and agronomic credentials for a farmer.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET DEALER PROFILE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/profile/dealer/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/profile/dealer/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "userId": 2,
+  "companyName": "Agro Fresh Mart Pvt Ltd",
+  "gstNumber": "33AABCA1234D1ZX",
+  "panNumber": "AABCA1234D",
+  "licenseNumber": "MANDI-APMC-9081",
+  "operatingStates": "Tamil Nadu, Karnataka, Kerala"
+}
+Response fields and data types:
+id: Long
+userId: Long
+companyName: String
+gstNumber: String
+panNumber: String
+licenseNumber: String
+operatingStates: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Dealer profile not found for user: 2"
+}
+EXPLANATION:
+Retrieves commercial credentials and business registration info for a dealer.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+UPDATE DEALER PROFILE
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/profile/dealer/{userId}
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "companyName": "Agro Fresh Mart Pvt Ltd",
+  "gstNumber": "33AABCA1234D1ZX",
+  "panNumber": "AABCA1234D",
+  "licenseNumber": "MANDI-APMC-9081",
+  "operatingStates": "Tamil Nadu, Karnataka, Kerala"
+}
+REQUIRED FIELDS:
+companyName: String
+gstNumber: String
+OPTIONAL FIELDS:
+panNumber: String
+licenseNumber: String
+operatingStates: String
+FIELD DATA TYPES:
+companyName: String
+gstNumber: String
+panNumber: String
+licenseNumber: String
+operatingStates: String
+Example Request:
+PUT /api/v1/users/profile/dealer/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "userId": 2,
+  "companyName": "Agro Fresh Mart Pvt Ltd",
+  "gstNumber": "33AABCA1234D1ZX",
+  "panNumber": "AABCA1234D",
+  "licenseNumber": "MANDI-APMC-9081",
+  "operatingStates": "Tamil Nadu, Karnataka, Kerala"
+}
+Response fields and data types:
+id: Long
+userId: Long
+companyName: String
+gstNumber: String
+panNumber: String
+licenseNumber: String
+operatingStates: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid GST or PAN number format"
+}
+EXPLANATION:
+Creates or updates corporate details, GSTIN, and trading licenses for a dealer.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+GET DELIVERY PARTNER PROFILE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/profile/delivery/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/profile/delivery/3
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "userId": 3,
+  "vehicleType": "TRUCK_MEDIUM",
+  "vehicleNumber": "TN-33-AB-1234",
+  "drivingLicenseNumber": "DL-TN33-2020-0012987",
+  "maxCapacityKg": 5000.0,
+  "serviceRadiusKm": 150.0,
+  "available": true
+}
+Response fields and data types:
+id: Long
+userId: Long
+vehicleType: String (Enum: MINI_TRUCK, TRUCK_MEDIUM, HEAVY_LORRY, TEMPO)
+vehicleNumber: String
+drivingLicenseNumber: String
+maxCapacityKg: Double
+serviceRadiusKm: Double
+available: Boolean
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Delivery profile not found for user: 3"
+}
+EXPLANATION:
+Retrieves vehicle details and operational capacity for a delivery partner.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+UPDATE DELIVERY PARTNER PROFILE
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/profile/delivery/{userId}
+AUTHENTICATION:
+Required (Role: DELIVERY_PARTNER)
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "vehicleType": "TRUCK_MEDIUM",
+  "vehicleNumber": "TN-33-AB-1234",
+  "drivingLicenseNumber": "DL-TN33-2020-0012987",
+  "maxCapacityKg": 5000.0,
+  "serviceRadiusKm": 150.0,
+  "available": true
+}
+REQUIRED FIELDS:
+vehicleType: String
+vehicleNumber: String
+drivingLicenseNumber: String
+maxCapacityKg: Double
+OPTIONAL FIELDS:
+serviceRadiusKm: Double
+available: Boolean
+FIELD DATA TYPES:
+vehicleType: String
+vehicleNumber: String
+drivingLicenseNumber: String
+maxCapacityKg: Double
+serviceRadiusKm: Double
+available: Boolean
+Example Request:
+PUT /api/v1/users/profile/delivery/3
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "userId": 3,
+  "vehicleType": "TRUCK_MEDIUM",
+  "vehicleNumber": "TN-33-AB-1234",
+  "drivingLicenseNumber": "DL-TN33-2020-0012987",
+  "maxCapacityKg": 5000.0,
+  "serviceRadiusKm": 150.0,
+  "available": true
+}
+Response fields and data types:
+id: Long
+userId: Long
+vehicleType: String
+vehicleNumber: String
+drivingLicenseNumber: String
+maxCapacityKg: Double
+serviceRadiusKm: Double
+available: Boolean
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid vehicle registration or payload"
+}
+EXPLANATION:
+Updates vehicle, capacity, and active availability for a delivery partner.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+LIST ALL USERS (ADMIN)
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/users/admin/all
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/users/admin/all
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "fullName": "Ramesh Kumar",
+    "email": "ramesh.farmer@cropdeal.com",
+    "mobileNumber": "9876543210",
+    "role": "FARMER",
+    "status": "ACTIVE",
+    "verified": true,
+    "createdAt": "2026-09-18T10:00:00"
+  }
+]
+Response fields and data types:
+Array of User Response Objects
+ERROR RESPONSES:
+403 FORBIDDEN:
+{
+  "message": "Access denied. Admin privileges required."
+}
+EXPLANATION:
+Admin endpoint to list all system accounts with full metadata.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+ADMIN ACTIVATE/DEACTIVATE USER STATUS
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/admin/{id}/status
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+id: Long
+Query Parameters:
+status: String (Enum: ACTIVE, INACTIVE, SUSPENDED)
+Request Body:
+No JSON Body
+Example Request:
+PUT /api/v1/users/admin/1/status?status=ACTIVE
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "status": "ACTIVE",
+  "message": "Status updated successfully"
+}
+Response fields and data types:
+id: Long
+fullName: String
+status: String
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with id: 1"
+}
+EXPLANATION:
+Admin endpoint to change account status or suspend delinquent users.
+============================================================
+
+============================================================
+SERVICE: USER SERVICE
+ADMIN VERIFY USER
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/users/admin/{id}/verify
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+id: Long
+Query Parameters:
+verified: Boolean
+Request Body:
+No JSON Body
+Example Request:
+PUT /api/v1/users/admin/1/verify?verified=true
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "fullName": "Ramesh Kumar",
+  "verified": true,
+  "message": "User verification status updated"
+}
+Response fields and data types:
+id: Long
+fullName: String
+verified: Boolean
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User not found with id: 1"
+}
+EXPLANATION:
+Admin endpoint to verify user identity documents and grant verified badge.
+============================================================
+
+
+================================================================================
+SERVICE: CROP SERVICE
+================================================================================
+
+============================================================
+SERVICE: CROP SERVICE
+CREATE CROP LISTING
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/crops
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "category": "VEGETABLE",
+  "variety": "Hybrid Tomato",
+  "grade": "A",
+  "quality": "PREMIUM",
+  "organic": true,
+  "description": "Fresh organically grown hybrid tomatoes from Erode farm",
+  "quantityKg": 500.0,
+  "pricePerKg": 25.0,
+  "state": "Tamil Nadu",
+  "district": "Erode",
+  "location": "Gobichettipalayam",
+  "latitude": 11.4548,
+  "longitude": 77.4422,
+  "imageUrl": "https://example.com/tomato.jpg"
+}
+REQUIRED FIELDS:
+farmerId: Long
+cropName: String
+category: String (Enum: GRAIN, VEGETABLE, FRUIT, PULSE, OILSEED, CASH_CROP)
+quantityKg: Double (Min: 1.0)
+pricePerKg: Double (Min: 0.1)
+state: String
+district: String
+location: String
+OPTIONAL FIELDS:
+variety: String
+grade: String
+quality: String (Enum: STANDARD, PREMIUM, ORGANIC, EXPORT)
+organic: Boolean
+description: String
+latitude: Double
+longitude: Double
+imageUrl: String
+FIELD DATA TYPES & ENUMS:
+farmerId: Long
+cropName: String
+category: Enum [GRAIN, VEGETABLE, FRUIT, PULSE, OILSEED, CASH_CROP]
+variety: String
+grade: String
+quality: Enum [STANDARD, PREMIUM, ORGANIC, EXPORT]
+organic: Boolean
+description: String
+quantityKg: Double
+pricePerKg: Double
+state: String
+district: String
+location: String
+latitude: Double
+longitude: Double
+imageUrl: String
+Example Request:
+POST /api/v1/crops
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "cropId": 1,
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "category": "VEGETABLE",
+  "variety": "Hybrid Tomato",
+  "grade": "A",
+  "quality": "PREMIUM",
+  "organic": true,
+  "description": "Fresh organically grown hybrid tomatoes from Erode farm",
+  "quantityKg": 500.0,
+  "availableQuantityKg": 500.0,
+  "pricePerKg": 25.0,
+  "status": "ACTIVE",
+  "state": "Tamil Nadu",
+  "district": "Erode",
+  "location": "Gobichettipalayam",
+  "latitude": 11.4548,
+  "longitude": 77.4422,
+  "imageUrl": "https://example.com/tomato.jpg",
+  "createdAt": "2026-09-18T10:15:00"
+}
+Response fields and data types:
+cropId: Long
+farmerId: Long
+cropName: String
+category: String
+variety: String
+grade: String
+quality: String
+organic: Boolean
+description: String
+quantityKg: Double
+availableQuantityKg: Double
+pricePerKg: Double
+status: String (Enum: ACTIVE, RESERVED, SOLD_OUT, DELETED)
+state: String
+district: String
+location: String
+latitude: Double
+longitude: Double
+imageUrl: String
+createdAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Price ₹25.0/kg is outside the permitted market price band [₹24.0 - ₹36.0]"
+}
+EXPLANATION:
+Creates a new crop listing for a farmer after automatically checking market price boundaries with Price Service.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+GET ALL CROPS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/crops
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/crops
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "cropId": 1,
+    "farmerId": 1,
+    "cropName": "Tomato",
+    "category": "VEGETABLE",
+    "variety": "Hybrid Tomato",
+    "quantityKg": 500.0,
+    "availableQuantityKg": 500.0,
+    "pricePerKg": 25.0,
+    "status": "ACTIVE",
+    "state": "Tamil Nadu",
+    "district": "Erode",
+    "location": "Gobichettipalayam"
+  }
+]
+Response fields and data types:
+Array of Crop Response Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Error retrieving crops"
+}
+EXPLANATION:
+Returns a complete list of all crops registered in the platform.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+GET ALL CROPS (ALIAS)
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/crops/all
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/crops/all
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "cropId": 1,
+    "farmerId": 1,
+    "cropName": "Tomato",
+    "category": "VEGETABLE",
+    "availableQuantityKg": 500.0,
+    "pricePerKg": 25.0,
+    "status": "ACTIVE"
+  }
+]
+Response fields and data types:
+Array of Crop Response Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Error retrieving crops"
+}
+EXPLANATION:
+Alias endpoint to retrieve all crop listings in the system.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+GET CROP BY ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/crops/{cropId}
+AUTHENTICATION:
+Not Required
+INPUT:
+PATH VARIABLE:
+cropId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/crops/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropId": 1,
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "category": "VEGETABLE",
+  "variety": "Hybrid Tomato",
+  "grade": "A",
+  "quality": "PREMIUM",
+  "organic": true,
+  "description": "Fresh organically grown hybrid tomatoes from Erode farm",
+  "quantityKg": 500.0,
+  "availableQuantityKg": 500.0,
+  "pricePerKg": 25.0,
+  "status": "ACTIVE",
+  "state": "Tamil Nadu",
+  "district": "Erode",
+  "location": "Gobichettipalayam",
+  "latitude": 11.4548,
+  "longitude": 77.4422,
+  "imageUrl": "https://example.com/tomato.jpg",
+  "createdAt": "2026-09-18T10:15:00"
+}
+Response fields and data types:
+cropId: Long
+farmerId: Long
+cropName: String
+category: String
+variety: String
+grade: String
+quality: String
+organic: Boolean
+description: String
+quantityKg: Double
+availableQuantityKg: Double
+pricePerKg: Double
+status: String
+state: String
+district: String
+location: String
+latitude: Double
+longitude: Double
+imageUrl: String
+createdAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Crop not found with id: 1"
+}
+EXPLANATION:
+Retrieves complete details of a specific crop listing by its ID.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+GET CROPS BY FARMER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/crops/farmer/{farmerId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/crops/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "cropId": 1,
+    "farmerId": 1,
+    "cropName": "Tomato",
+    "category": "VEGETABLE",
+    "availableQuantityKg": 500.0,
+    "pricePerKg": 25.0,
+    "status": "ACTIVE"
+  }
+]
+Response fields and data types:
+Array of Crop Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No crops found for farmer: 1"
+}
+EXPLANATION:
+Lists all crops posted by a specific farmer.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+GET CROPS BY CATEGORY
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/crops/category/{category}
+AUTHENTICATION:
+Not Required
+INPUT:
+PATH VARIABLE:
+category: String (Enum: GRAIN, VEGETABLE, FRUIT, PULSE, OILSEED, CASH_CROP)
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/crops/category/VEGETABLE
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "cropId": 1,
+    "farmerId": 1,
+    "cropName": "Tomato",
+    "category": "VEGETABLE",
+    "availableQuantityKg": 500.0,
+    "pricePerKg": 25.0,
+    "status": "ACTIVE"
+  }
+]
+Response fields and data types:
+Array of Crop Response Objects
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid crop category"
+}
+EXPLANATION:
+Filters crop listings by agricultural category.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+UPDATE CROP LISTING
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/crops/{cropId}
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+cropId: Long
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "category": "VEGETABLE",
+  "variety": "Hybrid Tomato Grade A",
+  "grade": "A+",
+  "quality": "PREMIUM",
+  "organic": true,
+  "description": "Updated description with export quality tomatoes",
+  "quantityKg": 600.0,
+  "pricePerKg": 26.0,
+  "state": "Tamil Nadu",
+  "district": "Erode",
+  "location": "Gobichettipalayam",
+  "latitude": 11.4548,
+  "longitude": 77.4422,
+  "imageUrl": "https://example.com/tomato_updated.jpg"
+}
+REQUIRED FIELDS:
+farmerId: Long
+cropName: String
+category: String
+quantityKg: Double
+pricePerKg: Double
+OPTIONAL FIELDS:
+variety: String
+grade: String
+quality: String
+organic: Boolean
+description: String
+latitude: Double
+longitude: Double
+imageUrl: String
+Example Request:
+PUT /api/v1/crops/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropId": 1,
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "quantityKg": 600.0,
+  "availableQuantityKg": 600.0,
+  "pricePerKg": 26.0,
+  "status": "ACTIVE"
+}
+Response fields and data types:
+cropId: Long
+farmerId: Long
+cropName: String
+quantityKg: Double
+availableQuantityKg: Double
+pricePerKg: Double
+status: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Crop not found with id: 1"
+}
+EXPLANATION:
+Updates crop listing parameters, pricing, and available quantity.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+DELETE CROP LISTING
+HTTP METHOD:
+DELETE
+ENDPOINT:
+/api/v1/crops/{cropId}
+AUTHENTICATION:
+Required (Role: FARMER, ADMIN)
+INPUT:
+PATH VARIABLE:
+cropId: Long
+Request Body:
+No JSON Body
+Example Request:
+DELETE /api/v1/crops/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "message": "Crop listing deleted successfully"
+}
+Response fields and data types:
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Crop not found with id: 1"
+}
+EXPLANATION:
+Deletes or marks a crop listing as DELETED.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+SEARCH MARKETPLACE CROPS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/crops/search
+AUTHENTICATION:
+Not Required
+INPUT:
+QUERY PARAMETERS:
+cropName: String (Optional)
+category: String (Optional)
+state: String (Optional)
+district: String (Optional)
+minPrice: Double (Optional)
+maxPrice: Double (Optional)
+organic: Boolean (Optional)
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/crops/search?cropName=Tomato&state=Tamil%20Nadu&district=Erode
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "cropId": 1,
+    "farmerId": 1,
+    "cropName": "Tomato",
+    "category": "VEGETABLE",
+    "variety": "Hybrid Tomato",
+    "grade": "A",
+    "quality": "PREMIUM",
+    "organic": true,
+    "description": "Fresh organically grown hybrid tomatoes",
+    "quantityKg": 500.0,
+    "availableQuantityKg": 500.0,
+    "pricePerKg": 25.0,
+    "status": "ACTIVE",
+    "state": "Tamil Nadu",
+    "district": "Erode",
+    "location": "Gobichettipalayam",
+    "latitude": 11.4548,
+    "longitude": 77.4422,
+    "imageUrl": "https://example.com/tomato.jpg"
+  }
+]
+Response fields and data types:
+Array of Active Crop Listings
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid search criteria"
+}
+EXPLANATION:
+Searches active marketplace crop listings by multi-parameter filters (name, location, state, price range, organic).
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+LOCK CROP INVENTORY
+HTTP METHOD:
+PATCH
+ENDPOINT:
+/api/v1/crops/{cropId}/inventory/lock
+AUTHENTICATION:
+Required (Internal / Service-to-Service)
+INPUT:
+PATH VARIABLE:
+cropId: Long
+QUERY PARAMETERS:
+quantityKg: Double
+Request Body:
+No JSON Body
+Example Request:
+PATCH /api/v1/crops/1/inventory/lock?quantityKg=100.0
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropId": 1,
+  "availableQuantityKg": 400.0,
+  "lockedQuantityKg": 100.0,
+  "status": "SUCCESS"
+}
+Response fields and data types:
+cropId: Long
+availableQuantityKg: Double
+lockedQuantityKg: Double
+status: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Insufficient available inventory"
+}
+EXPLANATION:
+Locks inventory during Order Saga orchestration to prevent double-purchasing.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+DEDUCT CROP INVENTORY
+HTTP METHOD:
+PATCH
+ENDPOINT:
+/api/v1/crops/{cropId}/inventory/deduct
+AUTHENTICATION:
+Required (Internal / Service-to-Service)
+INPUT:
+PATH VARIABLE:
+cropId: Long
+QUERY PARAMETERS:
+quantityKg: Double
+Request Body:
+No JSON Body
+Example Request:
+PATCH /api/v1/crops/1/inventory/deduct?quantityKg=100.0
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropId": 1,
+  "availableQuantityKg": 400.0,
+  "status": "DEDUCTED"
+}
+Response fields and data types:
+cropId: Long
+availableQuantityKg: Double
+status: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Cannot deduct inventory"
+}
+EXPLANATION:
+Permanently deducts crop inventory after successful payment confirmation.
+============================================================
+
+============================================================
+SERVICE: CROP SERVICE
+RELEASE CROP INVENTORY
+HTTP METHOD:
+PATCH
+ENDPOINT:
+/api/v1/crops/{cropId}/inventory/release
+AUTHENTICATION:
+Required (Internal / Service-to-Service)
+INPUT:
+PATH VARIABLE:
+cropId: Long
+QUERY PARAMETERS:
+quantityKg: Double
+Request Body:
+No JSON Body
+Example Request:
+PATCH /api/v1/crops/1/inventory/release?quantityKg=100.0
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropId": 1,
+  "availableQuantityKg": 500.0,
+  "status": "RELEASED"
+}
+Response fields and data types:
+cropId: Long
+availableQuantityKg: Double
+status: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Cannot release inventory"
+}
+EXPLANATION:
+Compensating transaction: releases locked inventory back to active status if payment fails.
+============================================================
+
+
+================================================================================
+SERVICE: PRICE SERVICE
+================================================================================
+
+============================================================
+SERVICE: PRICE SERVICE
+GET MANDI PRICE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/prices/mandi
+AUTHENTICATION:
+Not Required
+INPUT:
+QUERY PARAMETERS:
+cropName: String (Required)
+state: String (Optional)
+district: String (Optional)
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/prices/mandi?cropName=Tomato&state=Tamil%20Nadu&district=Erode
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropName": "Tomato",
+  "state": "Tamil Nadu",
+  "district": "Erode",
+  "benchmarkPricePerKg": 30.0,
+  "minPermittedPricePerKg": 24.0,
+  "maxPermittedPricePerKg": 36.0,
+  "source": "APMC Mandi Erode / Market Intelligence",
+  "updatedAt": "2026-09-18T10:00:00"
+}
+Response fields and data types:
+cropName: String
+state: String
+district: String
+benchmarkPricePerKg: Double
+minPermittedPricePerKg: Double
+maxPermittedPricePerKg: Double
+source: String
+updatedAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Price data not found for crop: Tomato"
+}
+EXPLANATION:
+Fetches current APMC Mandi reference benchmark rates and fair-trade price corridors.
+============================================================
+
+============================================================
+SERVICE: PRICE SERVICE
+VALIDATE CROP PRICE
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/prices/validate
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Request JSON:
+{
+  "cropName": "Tomato",
+  "category": "VEGETABLE",
+  "proposedPricePerKg": 25.0,
+  "state": "Tamil Nadu",
+  "district": "Erode"
+}
+REQUIRED FIELDS:
+cropName: String
+proposedPricePerKg: Double
+OPTIONAL FIELDS:
+category: String
+state: String
+district: String
+FIELD DATA TYPES:
+cropName: String
+category: String
+proposedPricePerKg: Double
+state: String
+district: String
+Example Request:
+POST /api/v1/prices/validate
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "valid": true,
+  "cropName": "Tomato",
+  "proposedPrice": 25.0,
+  "benchmarkPrice": 30.0,
+  "minAllowedPrice": 24.0,
+  "maxAllowedPrice": 36.0,
+  "message": "Price is within acceptable market range (+-20%)"
+}
+Response fields and data types:
+valid: Boolean
+cropName: String
+proposedPrice: Double
+benchmarkPrice: Double
+minAllowedPrice: Double
+maxAllowedPrice: Double
+message: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "valid": false,
+  "message": "Proposed price ₹50.0 is above maximum permitted band of ₹36.0"
+}
+EXPLANATION:
+Validates whether a farmer's proposed crop price is within fair market boundaries (+-20%).
+============================================================
+
+============================================================
+SERVICE: PRICE SERVICE
+CREATE PRICE ALERT
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/prices/alerts
+AUTHENTICATION:
+Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "userId": 2,
+  "cropName": "Tomato",
+  "targetPrice": 22.0,
+  "condition": "LESS_THAN_OR_EQUAL"
+}
+REQUIRED FIELDS:
+userId: Long
+cropName: String
+targetPrice: Double
+condition: String (Enum: LESS_THAN_OR_EQUAL, GREATER_THAN_OR_EQUAL)
+OPTIONAL FIELDS:
+None
+FIELD DATA TYPES:
+userId: Long
+cropName: String
+targetPrice: Double
+condition: Enum [LESS_THAN_OR_EQUAL, GREATER_THAN_OR_EQUAL]
+Example Request:
+POST /api/v1/prices/alerts
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "alertId": 1,
+  "userId": 2,
+  "cropName": "Tomato",
+  "targetPrice": 22.0,
+  "condition": "LESS_THAN_OR_EQUAL",
+  "active": true,
+  "createdAt": "2026-09-18T10:20:00"
+}
+Response fields and data types:
+alertId: Long
+userId: Long
+cropName: String
+targetPrice: Double
+condition: String
+active: Boolean
+createdAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid alert parameters"
+}
+EXPLANATION:
+Subscribes a buyer or dealer to price alerts when a crop reaches a target threshold.
+============================================================
+
+============================================================
+SERVICE: PRICE SERVICE
+GET USER PRICE ALERTS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/prices/alerts/user/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/prices/alerts/user/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "alertId": 1,
+    "userId": 2,
+    "cropName": "Tomato",
+    "targetPrice": 22.0,
+    "condition": "LESS_THAN_OR_EQUAL",
+    "active": true
+  }
+]
+Response fields and data types:
+Array of Price Alert Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No alerts found for user: 2"
+}
+EXPLANATION:
+Lists all active price alerts configured by a specific user.
+============================================================
+
+============================================================
+SERVICE: PRICE SERVICE
+DELETE PRICE ALERT
+HTTP METHOD:
+DELETE
+ENDPOINT:
+/api/v1/prices/alerts/{alertId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+alertId: Long
+Request Body:
+No JSON Body
+Example Request:
+DELETE /api/v1/prices/alerts/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "message": "Price alert deleted successfully"
+}
+Response fields and data types:
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Price alert not found with id: 1"
+}
+EXPLANATION:
+Deletes a specific price alert subscription.
+============================================================
+
+============================================================
+SERVICE: PRICE SERVICE
+GET MARKET INTELLIGENCE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/prices/intelligence/crop/{cropName}
+AUTHENTICATION:
+Not Required
+INPUT:
+PATH VARIABLE:
+cropName: String
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/prices/intelligence/crop/Tomato
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "cropName": "Tomato",
+  "averagePrice": 28.5,
+  "trend": "BULLISH",
+  "forecastNextWeek": 32.0,
+  "demandLevel": "HIGH",
+  "supplyVolumeKg": 150000.0,
+  "recommendation": "Favorable selling window for farmers"
+}
+Response fields and data types:
+cropName: String
+averagePrice: Double
+trend: String
+forecastNextWeek: Double
+demandLevel: String
+supplyVolumeKg: Double
+recommendation: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Market intelligence not available for crop: Tomato"
+}
+EXPLANATION:
+Provides market price trends, supply/demand index, and price forecasts for crops.
+============================================================
+
+
+================================================================================
+SERVICE: NEGOTIATION SERVICE
+================================================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+INITIATE NEGOTIATION
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/negotiations/initiate
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "cropId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "quantityKg": 100.0,
+  "offeredPricePerKg": 23.5,
+  "notes": "Interested in 100kg bulk purchase if price ₹23.5 is agreeable"
+}
+REQUIRED FIELDS:
+cropId: Long
+dealerId: Long
+farmerId: Long
+quantityKg: Double
+offeredPricePerKg: Double
+OPTIONAL FIELDS:
+notes: String
+FIELD DATA TYPES:
+cropId: Long
+dealerId: Long
+farmerId: Long
+quantityKg: Double
+offeredPricePerKg: Double
+notes: String
+Example Request:
+POST /api/v1/negotiations/initiate
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "negotiationId": 1,
+  "cropId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "quantityKg": 100.0,
+  "initialPricePerKg": 25.0,
+  "currentOfferPricePerKg": 23.5,
+  "lastOfferedBy": "DEALER",
+  "status": "PENDING",
+  "notes": "Interested in 100kg bulk purchase if price ₹23.5 is agreeable",
+  "createdAt": "2026-09-18T10:30:00",
+  "updatedAt": "2026-09-18T10:30:00"
+}
+Response fields and data types:
+negotiationId: Long
+cropId: Long
+dealerId: Long
+farmerId: Long
+quantityKg: Double
+initialPricePerKg: Double
+currentOfferPricePerKg: Double
+lastOfferedBy: String (DEALER, FARMER)
+status: String (Enum: PENDING, COUNTERED, ACCEPTED, REJECTED, EXPIRED)
+notes: String
+createdAt: String
+updatedAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid negotiation parameters or quantity exceeds available stock"
+}
+EXPLANATION:
+Dealer initiates a direct price negotiation bid with a farmer for a crop listing.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+COUNTER OFFER
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/negotiations/counter
+AUTHENTICATION:
+Required (Role: FARMER, DEALER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "negotiationId": 1,
+  "offeredByUserId": 1,
+  "counterPricePerKg": 24.2,
+  "notes": "Can do ₹24.2 for immediate pickup"
+}
+REQUIRED FIELDS:
+negotiationId: Long
+offeredByUserId: Long
+counterPricePerKg: Double
+OPTIONAL FIELDS:
+notes: String
+FIELD DATA TYPES:
+negotiationId: Long
+offeredByUserId: Long
+counterPricePerKg: Double
+notes: String
+Example Request:
+POST /api/v1/negotiations/counter
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "negotiationId": 1,
+  "cropId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "quantityKg": 100.0,
+  "currentOfferPricePerKg": 24.2,
+  "lastOfferedBy": "FARMER",
+  "status": "COUNTERED",
+  "notes": "Can do ₹24.2 for immediate pickup",
+  "updatedAt": "2026-09-18T10:35:00"
+}
+Response fields and data types:
+negotiationId: Long
+cropId: Long
+dealerId: Long
+farmerId: Long
+quantityKg: Double
+currentOfferPricePerKg: Double
+lastOfferedBy: String
+status: String
+notes: String
+updatedAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Cannot counter an accepted or closed negotiation"
+}
+EXPLANATION:
+Farmer or Dealer submits a revised counter-offer on an ongoing negotiation.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+ACCEPT NEGOTIATION
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/negotiations/{negotiationId}/accept
+AUTHENTICATION:
+Required (Role: FARMER, DEALER)
+INPUT:
+PATH VARIABLE:
+negotiationId: Long
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/negotiations/1/accept
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "negotiationId": 1,
+  "cropId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "quantityKg": 100.0,
+  "finalAgreedPricePerKg": 24.2,
+  "status": "ACCEPTED",
+  "orderCreated": true,
+  "updatedAt": "2026-09-18T10:40:00"
+}
+Response fields and data types:
+negotiationId: Long
+cropId: Long
+dealerId: Long
+farmerId: Long
+quantityKg: Double
+finalAgreedPricePerKg: Double
+status: String
+orderCreated: Boolean
+updatedAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Negotiation is already closed or invalid"
+}
+EXPLANATION:
+Accepts the agreed price and publishes an event to trigger order creation in Order Service.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+REJECT NEGOTIATION
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/negotiations/{negotiationId}/reject
+AUTHENTICATION:
+Required (Role: FARMER, DEALER)
+INPUT:
+PATH VARIABLE:
+negotiationId: Long
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/negotiations/1/reject
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "negotiationId": 1,
+  "status": "REJECTED",
+  "message": "Negotiation offer was declined"
+}
+Response fields and data types:
+negotiationId: Long
+status: String
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Negotiation not found with id: 1"
+}
+EXPLANATION:
+Declines and closes an open negotiation thread.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+GET NEGOTIATION BY ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/negotiations/{negotiationId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+negotiationId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/negotiations/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "negotiationId": 1,
+  "cropId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "quantityKg": 100.0,
+  "currentOfferPricePerKg": 24.2,
+  "status": "ACCEPTED"
+}
+Response fields and data types:
+negotiationId: Long
+cropId: Long
+dealerId: Long
+farmerId: Long
+quantityKg: Double
+currentOfferPricePerKg: Double
+status: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Negotiation not found with id: 1"
+}
+EXPLANATION:
+Retrieves complete details and status of a negotiation by its ID.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+GET NEGOTIATIONS BY CROP ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/negotiations/crop/{cropId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+cropId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/negotiations/crop/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "negotiationId": 1,
+    "cropId": 1,
+    "dealerId": 2,
+    "farmerId": 1,
+    "quantityKg": 100.0,
+    "currentOfferPricePerKg": 24.2,
+    "status": "ACCEPTED"
+  }
+]
+Response fields and data types:
+Array of Negotiation Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No negotiations found for crop: 1"
+}
+EXPLANATION:
+Lists all negotiation threads initiated for a particular crop listing.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+GET NEGOTIATIONS BY DEALER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/negotiations/dealer/{dealerId}
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+PATH VARIABLE:
+dealerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/negotiations/dealer/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "negotiationId": 1,
+    "cropId": 1,
+    "dealerId": 2,
+    "farmerId": 1,
+    "quantityKg": 100.0,
+    "currentOfferPricePerKg": 24.2,
+    "status": "ACCEPTED"
+  }
+]
+Response fields and data types:
+Array of Negotiation Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No negotiations found for dealer: 2"
+}
+EXPLANATION:
+Lists all negotiations initiated by a specific dealer.
+============================================================
+
+============================================================
+SERVICE: NEGOTIATION SERVICE
+GET NEGOTIATIONS BY FARMER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/negotiations/farmer/{farmerId}
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/negotiations/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "negotiationId": 1,
+    "cropId": 1,
+    "dealerId": 2,
+    "farmerId": 1,
+    "quantityKg": 100.0,
+    "currentOfferPricePerKg": 24.2,
+    "status": "ACCEPTED"
+  }
+]
+Response fields and data types:
+Array of Negotiation Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No negotiations found for farmer: 1"
+}
+EXPLANATION:
+Lists all negotiations received by a specific farmer.
+============================================================
+
+
+================================================================================
+SERVICE: BIDDING SERVICE
+================================================================================
+
+============================================================
+SERVICE: BIDDING SERVICE
+CREATE AUCTION
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auctions
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "cropId": 1,
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "quantityKg": 200.0,
+  "basePricePerKg": 20.0,
+  "minBidIncrement": 0.5,
+  "startTime": "2026-09-18T10:00:00",
+  "endTime": "2026-09-25T18:00:00"
+}
+REQUIRED FIELDS:
+cropId: Long
+farmerId: Long
+cropName: String
+quantityKg: Double
+basePricePerKg: Double
+startTime: String (ISO DateTime)
+endTime: String (ISO DateTime)
+OPTIONAL FIELDS:
+minBidIncrement: Double (Default: 1.0)
+FIELD DATA TYPES:
+cropId: Long
+farmerId: Long
+cropName: String
+quantityKg: Double
+basePricePerKg: Double
+minBidIncrement: Double
+startTime: String
+endTime: String
+Example Request:
+POST /api/v1/auctions
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "auctionId": 1,
+  "cropId": 1,
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "quantityKg": 200.0,
+  "basePricePerKg": 20.0,
+  "highestBidPricePerKg": 20.0,
+  "minBidIncrement": 0.5,
+  "status": "LIVE",
+  "startTime": "2026-09-18T10:00:00",
+  "endTime": "2026-09-25T18:00:00",
+  "totalBids": 0
+}
+Response fields and data types:
+auctionId: Long
+cropId: Long
+farmerId: Long
+cropName: String
+quantityKg: Double
+basePricePerKg: Double
+highestBidPricePerKg: Double
+minBidIncrement: Double
+status: String (Enum: SCHEDULED, LIVE, COMPLETED, CANCELLED)
+startTime: String
+endTime: String
+totalBids: Integer
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid auction duration or base price"
+}
+EXPLANATION:
+Farmer creates a new live auction lot for real-time competitive bidding by dealers.
+============================================================
+
+============================================================
+SERVICE: BIDDING SERVICE
+GET LIVE AUCTIONS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/auctions/live
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/auctions/live
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "auctionId": 1,
+    "cropId": 1,
+    "farmerId": 1,
+    "cropName": "Tomato",
+    "quantityKg": 200.0,
+    "basePricePerKg": 20.0,
+    "highestBidPricePerKg": 22.5,
+    "highestBidderId": 2,
+    "minBidIncrement": 0.5,
+    "status": "LIVE",
+    "startTime": "2026-09-18T10:00:00",
+    "endTime": "2026-09-25T18:00:00",
+    "totalBids": 3
+  }
+]
+Response fields and data types:
+Array of Live Auction Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Error fetching live auctions"
+}
+EXPLANATION:
+Fetches all currently active live auctions open for bidding.
+============================================================
+
+============================================================
+SERVICE: BIDDING SERVICE
+ACCEPT WINNING BID
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/auctions/{auctionId}/accept
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+auctionId: Long
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/auctions/1/accept
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "auctionId": 1,
+  "cropId": 1,
+  "farmerId": 1,
+  "highestBidderId": 2,
+  "winningPricePerKg": 22.5,
+  "status": "COMPLETED",
+  "message": "Winning bid accepted. Purchase order triggered."
+}
+Response fields and data types:
+auctionId: Long
+cropId: Long
+farmerId: Long
+highestBidderId: Long
+winningPricePerKg: Double
+status: String
+message: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "No bids placed or auction not live"
+}
+EXPLANATION:
+Farmer accepts the current highest bid, closes the auction, and triggers order generation.
+============================================================
+
+============================================================
+SERVICE: BIDDING SERVICE
+PLACE BID
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/bids/place
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "auctionId": 1,
+  "dealerId": 2,
+  "dealerName": "Anita Sharma",
+  "bidAmountPerKg": 22.5
+}
+REQUIRED FIELDS:
+auctionId: Long
+dealerId: Long
+bidAmountPerKg: Double
+OPTIONAL FIELDS:
+dealerName: String
+FIELD DATA TYPES:
+auctionId: Long
+dealerId: Long
+dealerName: String
+bidAmountPerKg: Double
+Example Request:
+POST /api/v1/bids/place
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "bidId": 1,
+  "auctionId": 1,
+  "dealerId": 2,
+  "dealerName": "Anita Sharma",
+  "bidAmountPerKg": 22.5,
+  "bidTime": "2026-09-18T10:45:00",
+  "status": "LEADING"
+}
+Response fields and data types:
+bidId: Long
+auctionId: Long
+dealerId: Long
+dealerName: String
+bidAmountPerKg: Double
+bidTime: String
+status: String (Enum: LEADING, OUTBID, WON, REJECTED)
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Bid amount must be at least ₹21.0 (Higher than current bid + increment)"
+}
+EXPLANATION:
+Places a new incremental price bid on an active auction.
+============================================================
+
+============================================================
+SERVICE: BIDDING SERVICE
+GET BIDS FOR AUCTION
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/bids/auction/{auctionId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+auctionId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/bids/auction/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "bidId": 1,
+    "auctionId": 1,
+    "dealerId": 2,
+    "dealerName": "Anita Sharma",
+    "bidAmountPerKg": 22.5,
+    "bidTime": "2026-09-18T10:45:00",
+    "status": "LEADING"
+  }
+]
+Response fields and data types:
+Array of Bid Objects sorted by price descending
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No bids found for auction: 1"
+}
+EXPLANATION:
+Retrieves bid history for an auction sorted in descending order of bid amount.
+============================================================
+
+
+================================================================================
+SERVICE: ORDER SERVICE
+================================================================================
+
+============================================================
+SERVICE: ORDER SERVICE
+DIRECT CROP PURCHASE (SAGA ORCHESTRATION)
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/orders/purchase
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "cropId": 1,
+  "dealerId": 2,
+  "quantityKg": 50.0,
+  "paymentMethod": "WALLET",
+  "deliveryAddress": "45 Market Yard, Erode, Tamil Nadu 638001"
+}
+REQUIRED FIELDS:
+cropId: Long
+dealerId: Long
+quantityKg: Double
+paymentMethod: String (Enum: WALLET, CARD, NET_BANKING, UPI)
+OPTIONAL FIELDS:
+deliveryAddress: String
+FIELD DATA TYPES:
+cropId: Long
+dealerId: Long
+quantityKg: Double
+paymentMethod: Enum [WALLET, CARD, NET_BANKING, UPI]
+deliveryAddress: String
+Example Request:
+POST /api/v1/orders/purchase
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "orderId": 1,
+  "cropId": 1,
+  "farmerId": 1,
+  "dealerId": 2,
+  "quantityKg": 50.0,
+  "pricePerKg": 25.0,
+  "totalAmount": 1250.0,
+  "deliveryFee": 150.0,
+  "finalAmount": 1400.0,
+  "orderStatus": "CONFIRMED",
+  "paymentStatus": "PAID",
+  "paymentMethod": "WALLET",
+  "orderType": "DIRECT_BUY",
+  "createdAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+orderId: Long
+cropId: Long
+farmerId: Long
+dealerId: Long
+quantityKg: Double
+pricePerKg: Double
+totalAmount: Double
+deliveryFee: Double
+finalAmount: Double
+orderStatus: String (Enum: PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED)
+paymentStatus: String (Enum: PENDING, PAID, FAILED, REFUNDED)
+paymentMethod: String
+orderType: String (Enum: DIRECT_BUY, NEGOTIATED, AUCTION_WIN)
+createdAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Insufficient wallet balance to complete transaction"
+}
+404 NOT FOUND:
+{
+  "message": "Crop not found with id: 1"
+}
+EXPLANATION:
+Executes direct crop purchase through the Saga Orchestrator: validates crop, locks inventory in Crop Service, debits funds in Payment/Wallet Service, confirms order, and initiates Invoice and Delivery creation.
+============================================================
+
+============================================================
+SERVICE: ORDER SERVICE
+GET ORDER BY ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/orders/{orderId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/orders/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "orderId": 1,
+  "cropId": 1,
+  "farmerId": 1,
+  "dealerId": 2,
+  "quantityKg": 50.0,
+  "pricePerKg": 25.0,
+  "totalAmount": 1250.0,
+  "deliveryFee": 150.0,
+  "finalAmount": 1400.0,
+  "orderStatus": "CONFIRMED",
+  "paymentStatus": "PAID",
+  "paymentMethod": "WALLET",
+  "orderType": "DIRECT_BUY",
+  "createdAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+orderId: Long
+cropId: Long
+farmerId: Long
+dealerId: Long
+quantityKg: Double
+pricePerKg: Double
+totalAmount: Double
+deliveryFee: Double
+finalAmount: Double
+orderStatus: String
+paymentStatus: String
+paymentMethod: String
+orderType: String
+createdAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Order not found with id: 1"
+}
+EXPLANATION:
+Retrieves complete details, status, and breakdown of a specific order.
+============================================================
+
+============================================================
+SERVICE: ORDER SERVICE
+GET ORDERS BY DEALER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/orders/dealer/{dealerId}
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+PATH VARIABLE:
+dealerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/orders/dealer/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "orderId": 1,
+    "cropId": 1,
+    "farmerId": 1,
+    "dealerId": 2,
+    "quantityKg": 50.0,
+    "totalAmount": 1250.0,
+    "orderStatus": "CONFIRMED",
+    "paymentStatus": "PAID",
+    "createdAt": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Order Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No orders found for dealer: 2"
+}
+EXPLANATION:
+Lists all purchase orders placed by a specific dealer.
+============================================================
+
+============================================================
+SERVICE: ORDER SERVICE
+GET ORDERS BY FARMER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/orders/farmer/{farmerId}
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/orders/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "orderId": 1,
+    "cropId": 1,
+    "farmerId": 1,
+    "dealerId": 2,
+    "quantityKg": 50.0,
+    "totalAmount": 1250.0,
+    "orderStatus": "CONFIRMED",
+    "paymentStatus": "PAID",
+    "createdAt": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Order Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No orders found for farmer: 1"
+}
+EXPLANATION:
+Lists all sales orders received by a specific farmer.
+============================================================
+
+============================================================
+SERVICE: ORDER SERVICE
+UPDATE ORDER STATUS
+HTTP METHOD:
+PATCH
+ENDPOINT:
+/api/v1/orders/{orderId}/status
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+QUERY PARAMETERS:
+status: String (Enum: PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED)
+Request Body:
+No JSON Body
+Example Request:
+PATCH /api/v1/orders/1/status?status=PROCESSING
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "orderId": 1,
+  "orderStatus": "PROCESSING",
+  "message": "Order status updated successfully"
+}
+Response fields and data types:
+orderId: Long
+orderStatus: String
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Order not found with id: 1"
+}
+EXPLANATION:
+Updates the lifecycle status of an existing order.
+============================================================
+
+
+================================================================================
+SERVICE: PAYMENT SERVICE
+================================================================================
+
+============================================================
+SERVICE: PAYMENT SERVICE
+SIMULATE AND PROCESS PAYMENT
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/payments/simulate
+AUTHENTICATION:
+Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "orderId": 1,
+  "payerId": 2,
+  "payeeId": 1,
+  "amount": 1400.0,
+  "paymentMethod": "WALLET",
+  "idempotencyKey": "IDEMP-ORD-001-9921"
+}
+REQUIRED FIELDS:
+orderId: Long
+payerId: Long
+payeeId: Long
+amount: Double
+paymentMethod: String (Enum: WALLET, CARD, NET_BANKING, UPI)
+OPTIONAL FIELDS:
+idempotencyKey: String
+FIELD DATA TYPES:
+orderId: Long
+payerId: Long
+payeeId: Long
+amount: Double
+paymentMethod: Enum [WALLET, CARD, NET_BANKING, UPI]
+idempotencyKey: String
+Example Request:
+POST /api/v1/payments/simulate
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "transactionId": "TXN-88392-CD",
+  "orderId": 1,
+  "payerId": 2,
+  "payeeId": 1,
+  "amount": 1400.0,
+  "status": "SUCCESS",
+  "paymentMethod": "WALLET",
+  "gatewayReference": "GW-SIM-992019",
+  "createdAt": "2026-09-18T11:01:00"
+}
+Response fields and data types:
+transactionId: String
+orderId: Long
+payerId: Long
+payeeId: Long
+amount: Double
+status: String (Enum: SUCCESS, FAILED, PENDING, REFUNDED)
+paymentMethod: String
+gatewayReference: String
+createdAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Payment processing failed or insufficient funds"
+}
+EXPLANATION:
+Simulates payment gateway transaction with idempotency protection and publishes payment event to RabbitMQ.
+============================================================
+
+============================================================
+SERVICE: PAYMENT SERVICE
+GET PAYMENT BY ORDER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/payments/order/{orderId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/payments/order/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "transactionId": "TXN-88392-CD",
+  "orderId": 1,
+  "payerId": 2,
+  "payeeId": 1,
+  "amount": 1400.0,
+  "status": "SUCCESS",
+  "paymentMethod": "WALLET",
+  "gatewayReference": "GW-SIM-992019",
+  "createdAt": "2026-09-18T11:01:00"
+}
+Response fields and data types:
+transactionId: String
+orderId: Long
+payerId: Long
+payeeId: Long
+amount: Double
+status: String
+paymentMethod: String
+gatewayReference: String
+createdAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Payment record not found for order: 1"
+}
+EXPLANATION:
+Retrieves payment transaction record and receipt details for an order.
+============================================================
+
+============================================================
+SERVICE: PAYMENT SERVICE
+ADMIN LIST ALL TRANSACTIONS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/payments/admin/all
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/payments/admin/all
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "transactionId": "TXN-88392-CD",
+    "orderId": 1,
+    "payerId": 2,
+    "payeeId": 1,
+    "amount": 1400.0,
+    "status": "SUCCESS",
+    "paymentMethod": "WALLET",
+    "createdAt": "2026-09-18T11:01:00"
+  }
+]
+Response fields and data types:
+Array of Payment Transaction Objects
+ERROR RESPONSES:
+403 FORBIDDEN:
+{
+  "message": "Admin privileges required"
+}
+EXPLANATION:
+Admin endpoint to list all payment transactions across the platform for audit.
+============================================================
+
+============================================================
+SERVICE: PAYMENT SERVICE
+ADMIN GET PAYMENT BY ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/payments/admin/{id}
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+id: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/payments/admin/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "id": 1,
+  "transactionId": "TXN-88392-CD",
+  "orderId": 1,
+  "payerId": 2,
+  "payeeId": 1,
+  "amount": 1400.0,
+  "status": "SUCCESS",
+  "paymentMethod": "WALLET",
+  "createdAt": "2026-09-18T11:01:00"
+}
+Response fields and data types:
+id: Long
+transactionId: String
+orderId: Long
+payerId: Long
+payeeId: Long
+amount: Double
+status: String
+paymentMethod: String
+createdAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Transaction not found with id: 1"
+}
+EXPLANATION:
+Admin endpoint to retrieve full details of a specific payment transaction record.
+============================================================
+
+
+================================================================================
+SERVICE: WALLET SERVICE
+================================================================================
+
+============================================================
+SERVICE: WALLET SERVICE
+GET USER WALLET
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/wallets/user/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/wallets/user/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "walletId": 1,
+  "userId": 2,
+  "balance": 50000.0,
+  "currency": "INR",
+  "status": "ACTIVE",
+  "updatedAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+walletId: Long
+userId: Long
+balance: Double
+currency: String
+status: String (ACTIVE, FROZEN)
+updatedAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Wallet not found for user: 2"
+}
+EXPLANATION:
+Fetches current wallet balance for a user, or auto-creates an active wallet with test funds if not present.
+============================================================
+
+============================================================
+SERVICE: WALLET SERVICE
+TOP UP WALLET BALANCE
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/wallets/user/{userId}/topup
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+QUERY PARAMETERS:
+amount: Double
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/wallets/user/2/topup?amount=10000.0
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "walletId": 1,
+  "userId": 2,
+  "balance": 60000.0,
+  "currency": "INR",
+  "status": "ACTIVE",
+  "updatedAt": "2026-09-18T11:05:00"
+}
+Response fields and data types:
+walletId: Long
+userId: Long
+balance: Double
+currency: String
+status: String
+updatedAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Top up amount must be greater than zero"
+}
+EXPLANATION:
+Credits and deposits funds into the user's digital wallet balance.
+============================================================
+
+============================================================
+SERVICE: WALLET SERVICE
+DEBIT WALLET BALANCE
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/wallets/user/{userId}/debit
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+QUERY PARAMETERS:
+amount: Double
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/wallets/user/2/debit?amount=1400.0
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "walletId": 1,
+  "userId": 2,
+  "balance": 58600.0,
+  "currency": "INR",
+  "status": "ACTIVE",
+  "updatedAt": "2026-09-18T11:10:00"
+}
+Response fields and data types:
+walletId: Long
+userId: Long
+balance: Double
+currency: String
+status: String
+updatedAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Insufficient wallet funds"
+}
+EXPLANATION:
+Debits or withdraws funds from the user's wallet.
+============================================================
+
+============================================================
+SERVICE: WALLET SERVICE
+GET WALLET TRANSACTIONS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/wallets/transactions/user/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/wallets/transactions/user/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "walletId": 1,
+    "transactionType": "DEBIT",
+    "amount": 1400.0,
+    "referenceType": "ORDER_PURCHASE",
+    "referenceId": "ORD-1",
+    "createdAt": "2026-09-18T11:10:00"
+  },
+  {
+    "id": 2,
+    "walletId": 1,
+    "transactionType": "CREDIT",
+    "amount": 10000.0,
+    "referenceType": "TOPUP",
+    "referenceId": "TOPUP-99",
+    "createdAt": "2026-09-18T11:05:00"
+  }
+]
+Response fields and data types:
+Array of Wallet Transaction Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No transactions found for user: 2"
+}
+EXPLANATION:
+Returns full transaction statement (credits, debits, escrow holds) for a user.
+============================================================
+
+============================================================
+SERVICE: WALLET SERVICE
+HOLD ESCROW FOR DELIVERY
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/wallets/transactions/escrow/hold
+AUTHENTICATION:
+Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "dealerId": 2,
+  "orderId": 1,
+  "deliveryFee": 150.0
+}
+REQUIRED FIELDS:
+dealerId: Long
+orderId: Long
+deliveryFee: Double
+OPTIONAL FIELDS:
+None
+FIELD DATA TYPES:
+dealerId: Long
+orderId: Long
+deliveryFee: Double
+Example Request:
+POST /api/v1/wallets/transactions/escrow/hold
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "status": "ESCROW_HELD",
+  "orderId": 1,
+  "dealerId": 2,
+  "escrowAmount": 150.0,
+  "message": "Delivery fee held in escrow successfully"
+}
+Response fields and data types:
+status: String
+orderId: Long
+dealerId: Long
+escrowAmount: Double
+message: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Insufficient dealer funds for delivery escrow"
+}
+EXPLANATION:
+Holds delivery fee in escrow until the delivery partner completes drop-off.
+============================================================
+
+============================================================
+SERVICE: WALLET SERVICE
+RELEASE ESCROW TO PARTNER
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/wallets/transactions/escrow/release
+AUTHENTICATION:
+Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "partnerId": 3,
+  "orderId": 1,
+  "deliveryFee": 150.0
+}
+REQUIRED FIELDS:
+partnerId: Long
+orderId: Long
+deliveryFee: Double
+OPTIONAL FIELDS:
+None
+FIELD DATA TYPES:
+partnerId: Long
+orderId: Long
+deliveryFee: Double
+Example Request:
+POST /api/v1/wallets/transactions/escrow/release
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "status": "ESCROW_RELEASED",
+  "orderId": 1,
+  "partnerId": 3,
+  "releasedAmount": 150.0,
+  "message": "Escrow released and credited to delivery partner wallet"
+}
+Response fields and data types:
+status: String
+orderId: Long
+partnerId: Long
+releasedAmount: Double
+message: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Escrow release failed"
+}
+EXPLANATION:
+Releases held delivery fee from escrow and credits it to the delivery partner's wallet upon verified drop-off.
+============================================================
+
+
+================================================================================
+SERVICE: INVOICE SERVICE
+================================================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+GET INVOICE BY INVOICE ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/{invoiceId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+invoiceId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "invoiceId": 1,
+  "invoiceNumber": "INV-2026-0001",
+  "orderId": 1,
+  "dealerId": 2,
+  "dealerName": "Anita Sharma",
+  "farmerId": 1,
+  "farmerName": "Ramesh Kumar",
+  "cropName": "Tomato",
+  "quantityKg": 50.0,
+  "pricePerKg": 25.0,
+  "itemTotal": 1250.0,
+  "deliveryFee": 150.0,
+  "taxAmount": 0.0,
+  "grandTotal": 1400.0,
+  "paymentStatus": "PAID",
+  "paymentMethod": "WALLET",
+  "generatedAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+invoiceId: Long
+invoiceNumber: String
+orderId: Long
+dealerId: Long
+dealerName: String
+farmerId: Long
+farmerName: String
+cropName: String
+quantityKg: Double
+pricePerKg: Double
+itemTotal: Double
+deliveryFee: Double
+taxAmount: Double
+grandTotal: Double
+paymentStatus: String
+paymentMethod: String
+generatedAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Invoice not found with id: 1"
+}
+EXPLANATION:
+Retrieves complete tax invoice details by Invoice ID.
+============================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+GET INVOICE BY ORDER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/order/{orderId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/order/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "invoiceId": 1,
+  "invoiceNumber": "INV-2026-0001",
+  "orderId": 1,
+  "dealerId": 2,
+  "dealerName": "Anita Sharma",
+  "farmerId": 1,
+  "farmerName": "Ramesh Kumar",
+  "cropName": "Tomato",
+  "quantityKg": 50.0,
+  "pricePerKg": 25.0,
+  "itemTotal": 1250.0,
+  "deliveryFee": 150.0,
+  "grandTotal": 1400.0,
+  "paymentStatus": "PAID",
+  "paymentMethod": "WALLET",
+  "generatedAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+invoiceId: Long
+invoiceNumber: String
+orderId: Long
+dealerId: Long
+dealerName: String
+farmerId: Long
+farmerName: String
+cropName: String
+quantityKg: Double
+pricePerKg: Double
+itemTotal: Double
+deliveryFee: Double
+grandTotal: Double
+paymentStatus: String
+paymentMethod: String
+generatedAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Invoice not found for order: 1"
+}
+EXPLANATION:
+Retrieves the invoice generated for a specific purchase order.
+============================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+DOWNLOAD INVOICE PDF
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/order/{orderId}/download
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/order/1/download
+OUTPUT:
+HTTP Status:
+200 OK
+Response:
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="Invoice-ORD-1.pdf"
+Binary PDF Byte Stream (%PDF-1.4...)
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Invoice not found for order: 1"
+}
+EXPLANATION:
+Generates and downloads the official formatted printable PDF invoice document for an order.
+============================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+GET INVOICES BY DEALER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/dealer/{dealerId}
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+PATH VARIABLE:
+dealerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/dealer/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "invoiceId": 1,
+    "invoiceNumber": "INV-2026-0001",
+    "orderId": 1,
+    "grandTotal": 1400.0,
+    "paymentStatus": "PAID",
+    "generatedAt": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Invoice Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No invoices found for dealer: 2"
+}
+EXPLANATION:
+Lists all invoices issued to a specific dealer.
+============================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+GET INVOICES BY FARMER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/farmer/{farmerId}
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "invoiceId": 1,
+    "invoiceNumber": "INV-2026-0001",
+    "orderId": 1,
+    "grandTotal": 1400.0,
+    "paymentStatus": "PAID",
+    "generatedAt": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Invoice Response Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No invoices found for farmer: 1"
+}
+EXPLANATION:
+Lists all sales invoices associated with a specific farmer.
+============================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+GET DEALER INVOICE (BACKWARD COMPATIBLE)
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/dealer/order/{orderId}
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/dealer/order/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "invoiceId": 1,
+  "invoiceNumber": "INV-2026-0001",
+  "orderId": 1,
+  "dealerId": 2,
+  "grandTotal": 1400.0,
+  "paymentStatus": "PAID"
+}
+Response fields and data types:
+Invoice Response Object
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Invoice not found for order: 1"
+}
+EXPLANATION:
+Backward-compatible endpoint for dealer purchase invoices.
+============================================================
+
+============================================================
+SERVICE: INVOICE SERVICE
+GET FARMER PAYMENT RECEIPT
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/invoices/farmer/order/{orderId}
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/invoices/farmer/order/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "receiptId": "REC-ORD-1",
+  "orderId": 1,
+  "farmerId": 1,
+  "cropName": "Tomato",
+  "quantityKg": 50.0,
+  "netFarmerPayout": 1250.0,
+  "payoutStatus": "CREDITED",
+  "settlementDate": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+receiptId: String
+orderId: Long
+farmerId: Long
+cropName: String
+quantityKg: Double
+netFarmerPayout: Double
+payoutStatus: String
+settlementDate: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Receipt not found for order: 1"
+}
+EXPLANATION:
+Retrieves payout receipt and settlement confirmation for the farmer.
+============================================================
+
+
+================================================================================
+SERVICE: DELIVERY SERVICE
+================================================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+CREATE DELIVERY REQUEST
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/deliveries/requests
+AUTHENTICATION:
+Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "orderId": 1,
+  "farmerId": 1,
+  "dealerId": 2,
+  "pickupLocation": "123 Green Valley Farm, Gobichettipalayam",
+  "pickupLatitude": 11.4548,
+  "pickupLongitude": 77.4422,
+  "dropLocation": "45 Market Yard, Erode",
+  "dropLatitude": 11.3410,
+  "dropLongitude": 77.7172,
+  "cropName": "Tomato",
+  "weightKg": 50.0,
+  "distanceKm": 15.0
+}
+REQUIRED FIELDS:
+orderId: Long
+farmerId: Long
+dealerId: Long
+pickupLocation: String
+dropLocation: String
+weightKg: Double
+distanceKm: Double
+OPTIONAL FIELDS:
+pickupLatitude: Double
+pickupLongitude: Double
+dropLatitude: Double
+dropLongitude: Double
+cropName: String
+FIELD DATA TYPES:
+orderId: Long
+farmerId: Long
+dealerId: Long
+pickupLocation: String
+pickupLatitude: Double
+pickupLongitude: Double
+dropLocation: String
+dropLatitude: Double
+dropLongitude: Double
+cropName: String
+weightKg: Double
+distanceKm: Double
+Example Request:
+POST /api/v1/deliveries/requests
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "deliveryId": 1,
+  "orderId": 1,
+  "farmerId": 1,
+  "dealerId": 2,
+  "deliveryPartnerId": null,
+  "status": "REQUESTED",
+  "distanceKm": 15.0,
+  "deliveryFee": 150.0,
+  "pickupLocation": "123 Green Valley Farm, Gobichettipalayam",
+  "dropLocation": "45 Market Yard, Erode",
+  "weightKg": 50.0,
+  "createdAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+deliveryId: Long
+orderId: Long
+farmerId: Long
+dealerId: Long
+deliveryPartnerId: Long
+status: String (Enum: REQUESTED, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED)
+distanceKm: Double
+deliveryFee: Double (Calculated automatically at ₹10.0 / km)
+pickupLocation: String
+dropLocation: String
+weightKg: Double
+createdAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid delivery request coordinates or weight"
+}
+EXPLANATION:
+Creates a new delivery dispatch request with automatic distance fee calculation (₹10/km).
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+GET DELIVERY REQUEST BY ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/deliveries/requests/{deliveryId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+deliveryId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/deliveries/requests/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryId": 1,
+  "orderId": 1,
+  "farmerId": 1,
+  "dealerId": 2,
+  "deliveryPartnerId": 3,
+  "status": "ASSIGNED",
+  "distanceKm": 15.0,
+  "deliveryFee": 150.0,
+  "pickupLocation": "123 Green Valley Farm, Gobichettipalayam",
+  "dropLocation": "45 Market Yard, Erode",
+  "weightKg": 50.0,
+  "createdAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+deliveryId: Long
+orderId: Long
+farmerId: Long
+dealerId: Long
+deliveryPartnerId: Long
+status: String
+distanceKm: Double
+deliveryFee: Double
+pickupLocation: String
+dropLocation: String
+weightKg: Double
+createdAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Delivery request not found with id: 1"
+}
+EXPLANATION:
+Retrieves complete delivery request details by delivery ID.
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+GET DELIVERY REQUEST BY ORDER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/deliveries/requests/order/{orderId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/deliveries/requests/order/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryId": 1,
+  "orderId": 1,
+  "farmerId": 1,
+  "dealerId": 2,
+  "deliveryPartnerId": 3,
+  "status": "ASSIGNED",
+  "distanceKm": 15.0,
+  "deliveryFee": 150.0
+}
+Response fields and data types:
+deliveryId: Long
+orderId: Long
+farmerId: Long
+dealerId: Long
+deliveryPartnerId: Long
+status: String
+distanceKm: Double
+deliveryFee: Double
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No delivery found for order: 1"
+}
+EXPLANATION:
+Retrieves the delivery dispatch request associated with a specific order.
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+GET AVAILABLE DELIVERIES
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/deliveries/partner/available
+AUTHENTICATION:
+Required (Role: DELIVERY_PARTNER)
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/deliveries/partner/available
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "deliveryId": 1,
+    "orderId": 1,
+    "farmerId": 1,
+    "dealerId": 2,
+    "status": "REQUESTED",
+    "distanceKm": 15.0,
+    "deliveryFee": 150.0,
+    "pickupLocation": "123 Green Valley Farm, Gobichettipalayam",
+    "dropLocation": "45 Market Yard, Erode",
+    "weightKg": 50.0
+  }
+]
+Response fields and data types:
+Array of Open Delivery Request Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Error fetching available deliveries"
+}
+EXPLANATION:
+Lists all unassigned, open delivery jobs waiting for partner acceptance.
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+ACCEPT DELIVERY JOB
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/deliveries/partner/{deliveryId}/accept
+AUTHENTICATION:
+Required (Role: DELIVERY_PARTNER)
+INPUT:
+PATH VARIABLE:
+deliveryId: Long
+QUERY PARAMETERS:
+partnerId: Long
+Request Body:
+No JSON Body
+Example Request:
+POST /api/v1/deliveries/partner/1/accept?partnerId=3
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryId": 1,
+  "orderId": 1,
+  "deliveryPartnerId": 3,
+  "status": "ASSIGNED",
+  "message": "Delivery job accepted successfully"
+}
+Response fields and data types:
+deliveryId: Long
+orderId: Long
+deliveryPartnerId: Long
+status: String
+message: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Delivery has already been assigned to another partner"
+}
+EXPLANATION:
+Delivery Partner accepts an available delivery request atomically.
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+UPDATE DELIVERY STATUS
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/deliveries/tracking/{deliveryId}/status
+AUTHENTICATION:
+Required (Role: DELIVERY_PARTNER)
+INPUT:
+PATH VARIABLE:
+deliveryId: Long
+QUERY PARAMETERS:
+status: String (Enum: PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED)
+Request Body:
+No JSON Body
+Example Request:
+PUT /api/v1/deliveries/tracking/1/status?status=DELIVERED
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryId": 1,
+  "status": "DELIVERED",
+  "updatedAt": "2026-09-18T11:45:00",
+  "message": "Delivery status updated successfully"
+}
+Response fields and data types:
+deliveryId: Long
+status: String
+updatedAt: String
+message: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid delivery status transition"
+}
+EXPLANATION:
+Updates delivery transit state; setting status to DELIVERED triggers order completion and escrow fund release.
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+UPDATE LIVE GPS LOCATION
+HTTP METHOD:
+PUT
+ENDPOINT:
+/api/v1/deliveries/tracking/{deliveryId}/location
+AUTHENTICATION:
+Required (Role: DELIVERY_PARTNER)
+INPUT:
+PATH VARIABLE:
+deliveryId: Long
+QUERY PARAMETERS:
+latitude: Double
+longitude: Double
+Request Body:
+No JSON Body
+Example Request:
+PUT /api/v1/deliveries/tracking/1/location?latitude=11.3780&longitude=77.6210
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryId": 1,
+  "currentLatitude": 11.3780,
+  "currentLongitude": 77.6210,
+  "updatedAt": "2026-09-18T11:30:00"
+}
+Response fields and data types:
+deliveryId: Long
+currentLatitude: Double
+currentLongitude: Double
+updatedAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Delivery not found with id: 1"
+}
+EXPLANATION:
+Broadcasts live GPS coordinates from the delivery driver's mobile device for real-time tracking.
+============================================================
+
+============================================================
+SERVICE: DELIVERY SERVICE
+GET LIVE TRACKING STATUS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/deliveries/tracking/{deliveryId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+deliveryId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/deliveries/tracking/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryId": 1,
+  "orderId": 1,
+  "status": "IN_TRANSIT",
+  "currentLatitude": 11.3780,
+  "currentLongitude": 77.6210,
+  "pickupLocation": "123 Green Valley Farm, Gobichettipalayam",
+  "dropLocation": "45 Market Yard, Erode",
+  "deliveryPartnerId": 3,
+  "updatedAt": "2026-09-18T11:30:00"
+}
+Response fields and data types:
+deliveryId: Long
+orderId: Long
+status: String
+currentLatitude: Double
+currentLongitude: Double
+pickupLocation: String
+dropLocation: String
+deliveryPartnerId: Long
+updatedAt: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Tracking information not found for delivery: 1"
+}
+EXPLANATION:
+Fetches live location, ETA, and progress status of an active shipment.
+============================================================
+
+
+================================================================================
+SERVICE: NOTIFICATION SERVICE
+================================================================================
+
+============================================================
+SERVICE: NOTIFICATION SERVICE
+SEND NOTIFICATION
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/notifications/send
+AUTHENTICATION:
+Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "userId": 1,
+  "title": "Order Placed",
+  "message": "Dealer Anita Sharma has purchased 50kg Tomato from your listing.",
+  "type": "ORDER_UPDATE",
+  "channel": "PUSH"
+}
+REQUIRED FIELDS:
+userId: Long
+title: String
+message: String
+OPTIONAL FIELDS:
+type: String (Enum: ORDER_UPDATE, BID_UPDATE, PRICE_ALERT, SYSTEM)
+channel: String (Enum: IN_APP, EMAIL, SMS, PUSH)
+FIELD DATA TYPES:
+userId: Long
+title: String
+message: String
+type: String
+channel: String
+Example Request:
+POST /api/v1/notifications/send
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "notificationId": 1,
+  "userId": 1,
+  "title": "Order Placed",
+  "message": "Dealer Anita Sharma has purchased 50kg Tomato from your listing.",
+  "type": "ORDER_UPDATE",
+  "channel": "PUSH",
+  "read": false,
+  "sentAt": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+notificationId: Long
+userId: Long
+title: String
+message: String
+type: String
+channel: String
+read: Boolean
+sentAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid notification parameters"
+}
+EXPLANATION:
+Sends an in-app or push notification alert to a specific user.
+============================================================
+
+============================================================
+SERVICE: NOTIFICATION SERVICE
+GET USER NOTIFICATIONS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/notifications/user/{userId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/notifications/user/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "notificationId": 1,
+    "userId": 1,
+    "title": "Order Placed",
+    "message": "Dealer Anita Sharma has purchased 50kg Tomato from your listing.",
+    "type": "ORDER_UPDATE",
+    "read": false,
+    "sentAt": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Notification Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No notifications found for user: 1"
+}
+EXPLANATION:
+Lists all notification alerts received by a user.
+============================================================
+
+============================================================
+SERVICE: NOTIFICATION SERVICE
+GET UNREAD NOTIFICATIONS
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/notifications/user/{userId}/unread
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/notifications/user/1/unread
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "notificationId": 1,
+    "userId": 1,
+    "title": "Order Placed",
+    "message": "Dealer Anita Sharma has purchased 50kg Tomato from your listing.",
+    "read": false,
+    "sentAt": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Unread Notification Objects
+ERROR RESPONSES:
+500 INTERNAL SERVER ERROR:
+{
+  "message": "Error fetching unread notifications"
+}
+EXPLANATION:
+Lists only unread notification alerts for a user inbox badge.
+============================================================
+
+============================================================
+SERVICE: NOTIFICATION SERVICE
+MARK NOTIFICATION AS READ
+HTTP METHOD:
+PATCH
+ENDPOINT:
+/api/v1/notifications/{notificationId}/read
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+notificationId: Long
+Request Body:
+No JSON Body
+Example Request:
+PATCH /api/v1/notifications/1/read
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "notificationId": 1,
+  "read": true,
+  "message": "Notification marked as read"
+}
+Response fields and data types:
+notificationId: Long
+read: Boolean
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Notification not found with id: 1"
+}
+EXPLANATION:
+Marks an individual notification as read.
+============================================================
+
+============================================================
+SERVICE: NOTIFICATION SERVICE
+MARK ALL USER NOTIFICATIONS AS READ
+HTTP METHOD:
+PATCH
+ENDPOINT:
+/api/v1/notifications/user/{userId}/read-all
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+PATCH /api/v1/notifications/user/1/read-all
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "userId": 1,
+  "message": "All notifications marked as read"
+}
+Response fields and data types:
+userId: Long
+message: String
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "User notifications not found"
+}
+EXPLANATION:
+Marks all unread notifications for a user as read.
+============================================================
+
+
+================================================================================
+SERVICE: REVIEW SERVICE
+================================================================================
+
+============================================================
+SERVICE: REVIEW SERVICE
+CREATE REVIEW AND RATING
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/reviews
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "orderId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "cropId": 1,
+  "rating": 5,
+  "reviewComment": "Exceptional tomato quality, fresh and organically harvested as promised!"
+}
+REQUIRED FIELDS:
+orderId: Long
+dealerId: Long
+farmerId: Long
+rating: Integer (Min: 1, Max: 5)
+OPTIONAL FIELDS:
+cropId: Long
+reviewComment: String
+FIELD DATA TYPES:
+orderId: Long
+dealerId: Long
+farmerId: Long
+cropId: Long
+rating: Integer
+reviewComment: String
+Example Request:
+POST /api/v1/reviews
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "reviewId": 1,
+  "orderId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "cropId": 1,
+  "rating": 5,
+  "reviewComment": "Exceptional tomato quality, fresh and organically harvested as promised!",
+  "createdAt": "2026-09-18T12:00:00"
+}
+Response fields and data types:
+reviewId: Long
+orderId: Long
+dealerId: Long
+farmerId: Long
+cropId: Long
+rating: Integer
+reviewComment: String
+createdAt: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Rating must be an integer between 1 and 5"
+}
+EXPLANATION:
+Dealer submits a quality review and rating for a delivered crop order.
+============================================================
+
+============================================================
+SERVICE: REVIEW SERVICE
+GET REVIEWS FOR FARMER
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reviews/farmer/{farmerId}
+AUTHENTICATION:
+Not Required
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reviews/farmer/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "reviewId": 1,
+    "orderId": 1,
+    "dealerId": 2,
+    "farmerId": 1,
+    "rating": 5,
+    "reviewComment": "Exceptional tomato quality, fresh and organically harvested as promised!",
+    "createdAt": "2026-09-18T12:00:00"
+  }
+]
+Response fields and data types:
+Array of Review Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No reviews found for farmer: 1"
+}
+EXPLANATION:
+Lists all buyer feedback reviews for a farmer's crop sales.
+============================================================
+
+============================================================
+SERVICE: REVIEW SERVICE
+GET REVIEW BY ORDER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reviews/order/{orderId}
+AUTHENTICATION:
+Required
+INPUT:
+PATH VARIABLE:
+orderId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reviews/order/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "reviewId": 1,
+  "orderId": 1,
+  "dealerId": 2,
+  "farmerId": 1,
+  "rating": 5,
+  "reviewComment": "Exceptional tomato quality, fresh and organically harvested as promised!"
+}
+Response fields and data types:
+Review Object
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Review not found for order: 1"
+}
+EXPLANATION:
+Retrieves the review and rating submitted for a specific order.
+============================================================
+
+============================================================
+SERVICE: REVIEW SERVICE
+GET FARMER REPUTATION SCORE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reviews/reputation/{farmerId}
+AUTHENTICATION:
+Not Required
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reviews/reputation/1
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "farmerId": 1,
+  "averageRating": 4.9,
+  "totalReviews": 18,
+  "reputationTier": "TOP_RATED_FARMER",
+  "trustScore": 98.0
+}
+Response fields and data types:
+farmerId: Long
+averageRating: Double
+totalReviews: Integer
+reputationTier: String (TOP_RATED_FARMER, VERIFIED_PRODUCER, STANDARD)
+trustScore: Double
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "Reputation data not found for farmer: 1"
+}
+EXPLANATION:
+Calculates aggregate trust metrics, star rating averages, and reputation badge for a farmer.
+============================================================
+
+
+================================================================================
+SERVICE: REPORT SERVICE
+================================================================================
+
+============================================================
+SERVICE: REPORT SERVICE
+ADMIN PLATFORM SUMMARY REPORT
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reports/admin/platform-summary
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reports/admin/platform-summary
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "totalUsers": 150,
+  "totalFarmers": 80,
+  "totalDealers": 50,
+  "totalDeliveryPartners": 20,
+  "totalCropsListed": 320,
+  "totalOrdersCompleted": 210,
+  "totalGrossMerchandiseValue": 4500000.0,
+  "totalDeliveryFeesPaid": 315000.0,
+  "activeLiveAuctions": 12,
+  "generatedAt": "2026-09-18T12:00:00"
+}
+Response fields and data types:
+totalUsers: Long
+totalFarmers: Long
+totalDealers: Long
+totalDeliveryPartners: Long
+totalCropsListed: Long
+totalOrdersCompleted: Long
+totalGrossMerchandiseValue: Double
+totalDeliveryFeesPaid: Double
+activeLiveAuctions: Long
+generatedAt: String
+ERROR RESPONSES:
+403 FORBIDDEN:
+{
+  "message": "Admin privileges required"
+}
+EXPLANATION:
+Compiles executive platform health statistics and aggregate marketplace metrics.
+============================================================
+
+============================================================
+SERVICE: REPORT SERVICE
+ADMIN REVENUE REPORT
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reports/admin/revenue
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+QUERY PARAMETERS:
+startDate: String (Optional, format: YYYY-MM-DD)
+endDate: String (Optional, format: YYYY-MM-DD)
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reports/admin/revenue?startDate=2026-09-01&endDate=2026-09-18
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "totalRevenue": 225000.0,
+  "platformCommissions": 135000.0,
+  "deliveryServiceFees": 90000.0,
+  "startDate": "2026-09-01",
+  "endDate": "2026-09-18"
+}
+Response fields and data types:
+totalRevenue: Double
+platformCommissions: Double
+deliveryServiceFees: Double
+startDate: String
+endDate: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid date range parameters"
+}
+EXPLANATION:
+Calculates platform commission and gross revenue breakdowns over a date window.
+============================================================
+
+============================================================
+SERVICE: REPORT SERVICE
+FARMER SALES REPORT
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reports/farmer/{farmerId}/sales
+AUTHENTICATION:
+Required (Role: FARMER)
+INPUT:
+PATH VARIABLE:
+farmerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reports/farmer/1/sales
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "farmerId": 1,
+  "totalSalesAmount": 125000.0,
+  "totalQuantitySoldKg": 5000.0,
+  "completedOrdersCount": 24,
+  "topPerformingCrop": "Tomato",
+  "averageSellingPricePerKg": 25.0
+}
+Response fields and data types:
+farmerId: Long
+totalSalesAmount: Double
+totalQuantitySoldKg: Double
+completedOrdersCount: Integer
+topPerformingCrop: String
+averageSellingPricePerKg: Double
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No sales records found for farmer: 1"
+}
+EXPLANATION:
+Generates analytics on crop revenue, total yield sold, and top crops for a farmer.
+============================================================
+
+============================================================
+SERVICE: REPORT SERVICE
+DEALER PURCHASES REPORT
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reports/dealer/{dealerId}/purchases
+AUTHENTICATION:
+Required (Role: DEALER)
+INPUT:
+PATH VARIABLE:
+dealerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reports/dealer/2/purchases
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "dealerId": 2,
+  "totalSpend": 250000.0,
+  "totalQuantityPurchasedKg": 10000.0,
+  "totalOrdersPlaced": 35,
+  "mostPurchasedCrop": "Tomato",
+  "averageCostPerKg": 25.0
+}
+Response fields and data types:
+dealerId: Long
+totalSpend: Double
+totalQuantityPurchasedKg: Double
+totalOrdersPlaced: Integer
+mostPurchasedCrop: String
+averageCostPerKg: Double
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No purchase records found for dealer: 2"
+}
+EXPLANATION:
+Generates spend analytics, procurement volume, and order history for a dealer.
+============================================================
+
+============================================================
+SERVICE: REPORT SERVICE
+DELIVERY PARTNER EARNINGS REPORT
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/reports/delivery/{partnerId}/earnings
+AUTHENTICATION:
+Required (Role: DELIVERY_PARTNER)
+INPUT:
+PATH VARIABLE:
+partnerId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/reports/delivery/3/earnings
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "deliveryPartnerId": 3,
+  "totalEarnings": 18500.0,
+  "completedTrips": 42,
+  "totalKilometersDriven": 1850.0,
+  "averageEarningsPerTrip": 440.48
+}
+Response fields and data types:
+deliveryPartnerId: Long
+totalEarnings: Double
+completedTrips: Integer
+totalKilometersDriven: Double
+averageEarningsPerTrip: Double
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No earnings records found for delivery partner: 3"
+}
+EXPLANATION:
+Compiles completed delivery trips, kilometers traveled, and total payouts for a delivery driver.
+============================================================
+
+
+================================================================================
+SERVICE: AUDIT SERVICE
+================================================================================
+
+============================================================
+SERVICE: AUDIT SERVICE
+RECORD AUDIT LOG
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/audit/logs
+AUTHENTICATION:
+Required (Internal / Service-to-Service)
+INPUT:
+Request Headers:
+Content-Type: application/json
+Authorization: Bearer <JWT_TOKEN>
+Request JSON:
+{
+  "serviceName": "order-service",
+  "action": "ORDER_CREATED",
+  "userId": 2,
+  "details": "Order ID 1 created for 50kg Tomato amounting to ₹1400",
+  "ipAddress": "172.18.0.1"
+}
+REQUIRED FIELDS:
+serviceName: String
+action: String
+OPTIONAL FIELDS:
+userId: Long
+details: String
+ipAddress: String
+FIELD DATA TYPES:
+serviceName: String
+action: String
+userId: Long
+details: String
+ipAddress: String
+Example Request:
+POST /api/v1/audit/logs
+OUTPUT:
+HTTP Status:
+201 CREATED
+Response JSON:
+{
+  "id": 1,
+  "serviceName": "order-service",
+  "action": "ORDER_CREATED",
+  "userId": 2,
+  "details": "Order ID 1 created for 50kg Tomato amounting to ₹1400",
+  "ipAddress": "172.18.0.1",
+  "timestamp": "2026-09-18T11:00:00"
+}
+Response fields and data types:
+id: Long
+serviceName: String
+action: String
+userId: Long
+details: String
+ipAddress: String
+timestamp: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Invalid audit log payload"
+}
+EXPLANATION:
+Stores immutable system audit events for compliance, security tracking, and non-repudiation.
+============================================================
+
+============================================================
+SERVICE: AUDIT SERVICE
+GET AUDIT LOGS BY SERVICE
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/audit/logs/service/{serviceName}
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+serviceName: String
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/audit/logs/service/order-service
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "serviceName": "order-service",
+    "action": "ORDER_CREATED",
+    "userId": 2,
+    "details": "Order ID 1 created for 50kg Tomato amounting to ₹1400",
+    "timestamp": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Audit Log Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No logs found for service: order-service"
+}
+EXPLANATION:
+Retrieves audit trails generated by a specific microservice.
+============================================================
+
+============================================================
+SERVICE: AUDIT SERVICE
+GET AUDIT LOGS BY USER ID
+HTTP METHOD:
+GET
+ENDPOINT:
+/api/v1/audit/logs/user/{userId}
+AUTHENTICATION:
+Required (Role: ADMIN)
+INPUT:
+PATH VARIABLE:
+userId: Long
+Request Body:
+No JSON Body
+Example Request:
+GET /api/v1/audit/logs/user/2
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+[
+  {
+    "id": 1,
+    "serviceName": "order-service",
+    "action": "ORDER_CREATED",
+    "userId": 2,
+    "details": "Order ID 1 created for 50kg Tomato amounting to ₹1400",
+    "timestamp": "2026-09-18T11:00:00"
+  }
+]
+Response fields and data types:
+Array of Audit Log Objects
+ERROR RESPONSES:
+404 NOT FOUND:
+{
+  "message": "No audit records found for user: 2"
+}
+EXPLANATION:
+Retrieves action history and security audit logs associated with a user ID.
+============================================================
+
+
+================================================================================
+SERVICE: CHATBOT SERVICE
+================================================================================
+
+============================================================
+SERVICE: CHATBOT SERVICE
+ASK AI CHATBOT ADVISORY
+HTTP METHOD:
+POST
+ENDPOINT:
+/api/v1/chatbot/ask
+AUTHENTICATION:
+Not Required
+INPUT:
+Request Headers:
+Content-Type: application/json
+Request JSON:
+{
+  "message": "What is the tomato price?"
+}
+REQUIRED FIELDS:
+message: String
+OPTIONAL FIELDS:
+None
+FIELD DATA TYPES:
+message: String
+Example Request:
+POST /api/v1/chatbot/ask
+OUTPUT:
+HTTP Status:
+200 OK
+Response JSON:
+{
+  "status": "SUCCESS",
+  "reply": "🍅 Real-Time Market Rate for TOMATO:
+• Benchmark / Mandi Rate: ₹30.00 / kg
+• Allowed Farmer Listing Band: ₹24.00 - ₹36.00 / kg
+• Active Marketplace Listings: 1 lot(s) currently available (Total stock: 500.00 kg).
+
+💡 Tip: You can place a direct buy order or negotiate directly with verified farmers on CropDeal!",
+  "timestamp": "2026-09-18T14:14:02.871"
+}
+Response fields and data types:
+status: String
+reply: String
+timestamp: String
+ERROR RESPONSES:
+400 BAD REQUEST:
+{
+  "message": "Query message cannot be blank"
+}
+EXPLANATION:
+Conversational agronomy and market intelligence chatbot. Dynamically queries Price Service and Crop Service for real-time market rates, live crop stock, fertilizer schedules, and disease remedies.
+============================================================
+
+
+================================================================================
+FINAL SUMMARY: ENDPOINT SUMMARY TABLE
+================================================================================
+SERVICE                 METHOD   ENDPOINT
+--------------------------------------------------------------------------------
+AUTH SERVICE            POST     /api/v1/auth/register
+AUTH SERVICE            POST     /api/v1/auth/login
+AUTH SERVICE            POST     /api/v1/auth/validate
+AUTH SERVICE            POST     /api/v1/auth/refresh
+AUTH SERVICE            POST     /api/v1/auth/admin/register
+AUTH SERVICE            POST     /api/v1/auth/admin/login
+
+USER SERVICE            GET      /api/v1/users/{id}
+USER SERVICE            GET      /api/v1/users/email/{email}
+USER SERVICE            GET      /api/v1/users/mobile/{mobileNumber}
+USER SERVICE            GET      /api/v1/users/role/{role}
+USER SERVICE            GET      /api/v1/users
+USER SERVICE            GET      /api/v1/users/all
+USER SERVICE            PUT      /api/v1/users/{id}
+USER SERVICE            PUT      /api/v1/users/status/{id}
+USER SERVICE            DELETE   /api/v1/users/{id}
+USER SERVICE            GET      /api/v1/users/profile/farmer/{userId}
+USER SERVICE            PUT      /api/v1/users/profile/farmer/{userId}
+USER SERVICE            GET      /api/v1/users/profile/dealer/{userId}
+USER SERVICE            PUT      /api/v1/users/profile/dealer/{userId}
+USER SERVICE            GET      /api/v1/users/profile/delivery/{userId}
+USER SERVICE            PUT      /api/v1/users/profile/delivery/{userId}
+USER SERVICE            GET      /api/v1/users/admin/all
+USER SERVICE            PUT      /api/v1/users/admin/{id}/status
+USER SERVICE            PUT      /api/v1/users/admin/{id}/verify
+
+CROP SERVICE            POST     /api/v1/crops
+CROP SERVICE            GET      /api/v1/crops
+CROP SERVICE            GET      /api/v1/crops/all
+CROP SERVICE            GET      /api/v1/crops/{cropId}
+CROP SERVICE            GET      /api/v1/crops/farmer/{farmerId}
+CROP SERVICE            GET      /api/v1/crops/category/{category}
+CROP SERVICE            PUT      /api/v1/crops/{cropId}
+CROP SERVICE            DELETE   /api/v1/crops/{cropId}
+CROP SERVICE            GET      /api/v1/crops/search
+CROP SERVICE            PATCH    /api/v1/crops/{cropId}/inventory/lock
+CROP SERVICE            PATCH    /api/v1/crops/{cropId}/inventory/deduct
+CROP SERVICE            PATCH    /api/v1/crops/{cropId}/inventory/release
+
+PRICE SERVICE           GET      /api/v1/prices/mandi
+PRICE SERVICE           POST     /api/v1/prices/validate
+PRICE SERVICE           POST     /api/v1/prices/alerts
+PRICE SERVICE           GET      /api/v1/prices/alerts/user/{userId}
+PRICE SERVICE           DELETE   /api/v1/prices/alerts/{alertId}
+PRICE SERVICE           GET      /api/v1/prices/intelligence/crop/{cropName}
+
+NEGOTIATION SERVICE     POST     /api/v1/negotiations/initiate
+NEGOTIATION SERVICE     POST     /api/v1/negotiations/counter
+NEGOTIATION SERVICE     POST     /api/v1/negotiations/{negotiationId}/accept
+NEGOTIATION SERVICE     POST     /api/v1/negotiations/{negotiationId}/reject
+NEGOTIATION SERVICE     GET      /api/v1/negotiations/{negotiationId}
+NEGOTIATION SERVICE     GET      /api/v1/negotiations/crop/{cropId}
+NEGOTIATION SERVICE     GET      /api/v1/negotiations/dealer/{dealerId}
+NEGOTIATION SERVICE     GET      /api/v1/negotiations/farmer/{farmerId}
+
+BIDDING SERVICE         POST     /api/v1/auctions
+BIDDING SERVICE         GET      /api/v1/auctions/live
+BIDDING SERVICE         POST     /api/v1/auctions/{auctionId}/accept
+BIDDING SERVICE         POST     /api/v1/bids/place
+BIDDING SERVICE         GET      /api/v1/bids/auction/{auctionId}
+
+ORDER SERVICE           POST     /api/v1/orders/purchase
+ORDER SERVICE           GET      /api/v1/orders/{orderId}
+ORDER SERVICE           GET      /api/v1/orders/dealer/{dealerId}
+ORDER SERVICE           GET      /api/v1/orders/farmer/{farmerId}
+ORDER SERVICE           PATCH    /api/v1/orders/{orderId}/status
+
+PAYMENT SERVICE         POST     /api/v1/payments/simulate
+PAYMENT SERVICE         GET      /api/v1/payments/order/{orderId}
+PAYMENT SERVICE         GET      /api/v1/payments/admin/all
+PAYMENT SERVICE         GET      /api/v1/payments/admin/{id}
+
+WALLET SERVICE          GET      /api/v1/wallets/user/{userId}
+WALLET SERVICE          POST     /api/v1/wallets/user/{userId}/topup
+WALLET SERVICE          POST     /api/v1/wallets/user/{userId}/debit
+WALLET SERVICE          GET      /api/v1/wallets/transactions/user/{userId}
+WALLET SERVICE          POST     /api/v1/wallets/transactions/escrow/hold
+WALLET SERVICE          POST     /api/v1/wallets/transactions/escrow/release
+
+INVOICE SERVICE         GET      /api/v1/invoices/{invoiceId}
+INVOICE SERVICE         GET      /api/v1/invoices/order/{orderId}
+INVOICE SERVICE         GET      /api/v1/invoices/order/{orderId}/download
+INVOICE SERVICE         GET      /api/v1/invoices/dealer/{dealerId}
+INVOICE SERVICE         GET      /api/v1/invoices/farmer/{farmerId}
+INVOICE SERVICE         GET      /api/v1/invoices/dealer/order/{orderId}
+INVOICE SERVICE         GET      /api/v1/invoices/farmer/order/{orderId}
+
+DELIVERY SERVICE        POST     /api/v1/deliveries/requests
+DELIVERY SERVICE        GET      /api/v1/deliveries/requests/{deliveryId}
+DELIVERY SERVICE        GET      /api/v1/deliveries/requests/order/{orderId}
+DELIVERY SERVICE        GET      /api/v1/deliveries/partner/available
+DELIVERY SERVICE        POST     /api/v1/deliveries/partner/{deliveryId}/accept
+DELIVERY SERVICE        PUT      /api/v1/deliveries/tracking/{deliveryId}/status
+DELIVERY SERVICE        PUT      /api/v1/deliveries/tracking/{deliveryId}/location
+DELIVERY SERVICE        GET      /api/v1/deliveries/tracking/{deliveryId}
+
+NOTIFICATION SERVICE    POST     /api/v1/notifications/send
+NOTIFICATION SERVICE    GET      /api/v1/notifications/user/{userId}
+NOTIFICATION SERVICE    GET      /api/v1/notifications/user/{userId}/unread
+NOTIFICATION SERVICE    PATCH    /api/v1/notifications/{notificationId}/read
+NOTIFICATION SERVICE    PATCH    /api/v1/notifications/user/{userId}/read-all
+
+REVIEW SERVICE          POST     /api/v1/reviews
+REVIEW SERVICE          GET      /api/v1/reviews/farmer/{farmerId}
+REVIEW SERVICE          GET      /api/v1/reviews/order/{orderId}
+REVIEW SERVICE          GET      /api/v1/reviews/reputation/{farmerId}
+
+REPORT SERVICE          GET      /api/v1/reports/admin/platform-summary
+REPORT SERVICE          GET      /api/v1/reports/admin/revenue
+REPORT SERVICE          GET      /api/v1/reports/farmer/{farmerId}/sales
+REPORT SERVICE          GET      /api/v1/reports/dealer/{dealerId}/purchases
+REPORT SERVICE          GET      /api/v1/reports/delivery/{partnerId}/earnings
+
+AUDIT SERVICE           POST     /api/v1/audit/logs
+AUDIT SERVICE           GET      /api/v1/audit/logs/service/{serviceName}
+AUDIT SERVICE           GET      /api/v1/audit/logs/user/{userId}
+
+CHATBOT SERVICE         POST     /api/v1/chatbot/ask
+--------------------------------------------------------------------------------
+
+TOTAL MICROSERVICES: 16
+TOTAL ENDPOINTS: 103
+================================================================================

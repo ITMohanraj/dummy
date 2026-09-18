@@ -1,0 +1,240 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/v1/auth/**
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/**
+        - id: crop-service
+          uri: lb://CROP-SERVICE
+          predicates:
+            - Path=/api/v1/crops/**
+        - id: price-service
+          uri: lb://PRICE-SERVICE
+          predicates:
+            - Path=/api/v1/prices/**
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/v1/orders/**
+        - id: negotiation-service
+          uri: lb://NEGOTIATION-SERVICE
+          predicates:
+            - Path=/api/v1/negotiations/**
+        - id: invoice-service
+          uri: lb://INVOICE-SERVICE
+          predicates:
+            - Path=/api/v1/invoices/**
+        - id: payment-service
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/v1/payments/**
+        - id: wallet-service
+          uri: lb://WALLET-SERVICE
+          predicates:
+            - Path=/api/v1/wallets/**
+        - id: bidding-service
+          uri: lb://BIDDING-SERVICE
+          predicates:
+            - Path=/api/v1/bids/**, /api/v1/auctions/**
+        - id: delivery-service
+          uri: lb://DELIVERY-SERVICE
+          predicates:
+            - Path=/api/v1/deliveries/**
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/v1/notifications/**
+        - id: review-service
+          uri: lb://REVIEW-SERVICE
+          predicates:
+            - Path=/api/v1/reviews/**
+        - id: report-service
+          uri: lb://REPORT-SERVICE
+          predicates:
+            - Path=/api/v1/reports/**
+        - id: audit-service
+          uri: lb://AUDIT-SERVICE
+          predicates:
+            - Path=/api/v1/audit/**
+        - id: chatbot-service
+          uri: lb://CHATBOT-SERVICE
+          predicates:
+            - Path=/api/v1/chatbot/**
+
+        # Swagger OpenAPI documentation routes
+        - id: auth-service-swagger
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth-service/v3/api-docs
+          filters:
+            - RewritePath=/auth-service/v3/api-docs, /v3/api-docs
+        - id: user-service-swagger
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user-service/v3/api-docs
+          filters:
+            - RewritePath=/user-service/v3/api-docs, /v3/api-docs
+        - id: crop-service-swagger
+          uri: lb://CROP-SERVICE
+          predicates:
+            - Path=/crop-service/v3/api-docs
+          filters:
+            - RewritePath=/crop-service/v3/api-docs, /v3/api-docs
+        - id: price-service-swagger
+          uri: lb://PRICE-SERVICE
+          predicates:
+            - Path=/price-service/v3/api-docs
+          filters:
+            - RewritePath=/price-service/v3/api-docs, /v3/api-docs
+        - id: order-service-swagger
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/order-service/v3/api-docs
+          filters:
+            - RewritePath=/order-service/v3/api-docs, /v3/api-docs
+        - id: payment-service-swagger
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/payment-service/v3/api-docs
+          filters:
+            - RewritePath=/payment-service/v3/api-docs, /v3/api-docs
+        - id: wallet-service-swagger
+          uri: lb://WALLET-SERVICE
+          predicates:
+            - Path=/wallet-service/v3/api-docs
+          filters:
+            - RewritePath=/wallet-service/v3/api-docs, /v3/api-docs
+        - id: bidding-service-swagger
+          uri: lb://BIDDING-SERVICE
+          predicates:
+            - Path=/bidding-service/v3/api-docs
+          filters:
+            - RewritePath=/bidding-service/v3/api-docs, /v3/api-docs
+        - id: delivery-service-swagger
+          uri: lb://DELIVERY-SERVICE
+          predicates:
+            - Path=/delivery-service/v3/api-docs
+          filters:
+            - RewritePath=/delivery-service/v3/api-docs, /v3/api-docs
+        - id: notification-service-swagger
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notification-service/v3/api-docs
+          filters:
+            - RewritePath=/notification-service/v3/api-docs, /v3/api-docs
+        - id: review-service-swagger
+          uri: lb://REVIEW-SERVICE
+          predicates:
+            - Path=/review-service/v3/api-docs
+          filters:
+            - RewritePath=/review-service/v3/api-docs, /v3/api-docs
+        - id: report-service-swagger
+          uri: lb://REPORT-SERVICE
+          predicates:
+            - Path=/report-service/v3/api-docs
+          filters:
+            - RewritePath=/report-service/v3/api-docs, /v3/api-docs
+        - id: audit-service-swagger
+          uri: lb://AUDIT-SERVICE
+          predicates:
+            - Path=/audit-service/v3/api-docs
+          filters:
+            - RewritePath=/audit-service/v3/api-docs, /v3/api-docs
+        - id: chatbot-service-swagger
+          uri: lb://CHATBOT-SERVICE
+          predicates:
+            - Path=/chatbot-service/v3/api-docs
+          filters:
+            - RewritePath=/chatbot-service/v3/api-docs, /v3/api-docs
+        - id: negotiation-service-swagger
+          uri: lb://NEGOTIATION-SERVICE
+          predicates:
+            - Path=/negotiation-service/v3/api-docs
+          filters:
+            - RewritePath=/negotiation-service/v3/api-docs, /v3/api-docs
+        - id: invoice-service-swagger
+          uri: lb://INVOICE-SERVICE
+          predicates:
+            - Path=/invoice-service/v3/api-docs
+          filters:
+            - RewritePath=/invoice-service/v3/api-docs, /v3/api-docs
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Auth Service
+        url: /auth-service/v3/api-docs
+      - name: User Service
+        url: /user-service/v3/api-docs
+      - name: Crop Service
+        url: /crop-service/v3/api-docs
+      - name: Price Service
+        url: /price-service/v3/api-docs
+      - name: Order Service
+        url: /order-service/v3/api-docs
+      - name: Negotiation Service
+        url: /negotiation-service/v3/api-docs
+      - name: Invoice Service
+        url: /invoice-service/v3/api-docs
+      - name: Payment Service
+        url: /payment-service/v3/api-docs
+      - name: Wallet Service
+        url: /wallet-service/v3/api-docs
+      - name: Bidding Service
+        url: /bidding-service/v3/api-docs
+      - name: Delivery Service
+        url: /delivery-service/v3/api-docs
+      - name: Notification Service
+        url: /notification-service/v3/api-docs
+      - name: Review Service
+        url: /review-service/v3/api-docs
+      - name: Report Service
+        url: /report-service/v3/api-docs
+      - name: Audit Service
+        url: /audit-service/v3/api-docs
+      - name: Chatbot Service
+        url: /chatbot-service/v3/api-docs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+cropdeal:
+  jwt:
+    secret: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

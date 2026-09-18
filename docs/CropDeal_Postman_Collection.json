@@ -1,0 +1,607 @@
+{
+  "info": {
+    "name": "CropDeal Microservices Platform - Complete E2E Suite",
+    "_postman_id": "cropdeal-e2e-collection",
+    "description": "Comprehensive API test collection for all 40 manual testing sections of CropDeal.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    },
+    {
+      "key": "farmer_id",
+      "value": "1"
+    },
+    {
+      "key": "dealer_id",
+      "value": "2"
+    },
+    {
+      "key": "partner_id",
+      "value": "3"
+    },
+    {
+      "key": "crop_id",
+      "value": "1"
+    },
+    {
+      "key": "order_id",
+      "value": "1"
+    },
+    {
+      "key": "delivery_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Admin & Auth",
+      "item": [
+        {
+          "name": "ADM-001 - Default Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"mohanraj.k1110@gmail.com\", \"password\": \"Admin@123\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "FARM-001 - Farmer Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fullName\": \"Farmer One\", \"email\": \"farmer1@gmail.com\", \"password\": \"Farmer@123\", \"role\": \"ROLE_FARMER\", \"phone\": \"9876543210\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DEAL-001 - Dealer Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fullName\": \"Dealer One\", \"email\": \"dealer1@gmail.com\", \"password\": \"Dealer@123\", \"role\": \"ROLE_DEALER\", \"phone\": \"9876543211\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELREG-001 - Delivery Partner Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fullName\": \"Delivery One\", \"email\": \"delivery1@gmail.com\", \"password\": \"Delivery@123\", \"role\": \"ROLE_DELIVERY_PARTNER\", \"phone\": \"9876543212\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Crop Listings & Search",
+      "item": [
+        {
+          "name": "CROP-001 - Create Crop (Tomato)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"farmerId\": 1, \"cropName\": \"Tomato\", \"category\": \"VEGETABLES\", \"variety\": \"Hybrid\", \"grade\": \"A\", \"quantityKg\": 500, \"pricePerKg\": 30.0, \"state\": \"Tamil Nadu\", \"district\": \"Erode\", \"location\": \"Erode Market\", \"latitude\": 11.341, \"longitude\": 77.717, \"organic\": true}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/crops",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crops"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SEARCH-001 - Search Marketplace",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/crops/search?cropName=Tomato&state=Tamil Nadu&district=Erode",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crops",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "cropName",
+                  "value": "Tomato"
+                },
+                {
+                  "key": "state",
+                  "value": "Tamil Nadu"
+                },
+                {
+                  "key": "district",
+                  "value": "Erode"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Government Price Validation",
+      "item": [
+        {
+          "name": "PRICE-001 - Validate Price",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/prices/validate?cropName=Tomato&state=Tamil Nadu&district=Erode&pricePerKg=30.0",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prices",
+                "validate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PRICE-HIST-002 - 30-Day Trend",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/prices/intelligence/trend?commodity=Tomato&state=Tamil Nadu&district=Erode",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prices",
+                "intelligence",
+                "trend"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Wallet & Payments",
+      "item": [
+        {
+          "name": "WAL-001 - Get/Create Wallet",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/wallets/user/{{dealer_id}}?role=DEALER",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallets",
+                "user",
+                "{{dealer_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "WAL-002 - Top Up Wallet (\u20b910,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\": 10000.0}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/wallets/user/{{dealer_id}}/topup",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallets",
+                "user",
+                "{{dealer_id}}",
+                "topup"
+              ]
+            }
+          }
+        },
+        {
+          "name": "WAL-003 - Debit Wallet (\u20b92,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\": 2000.0, \"reason\": \"WITHDRAW\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/wallets/user/{{dealer_id}}/debit",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallets",
+                "user",
+                "{{dealer_id}}",
+                "debit"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PAY-001 - Simulated Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\": 1, \"payerUserId\": 2, \"payeeUserId\": 1, \"amount\": 3000.0, \"paymentMethod\": \"UPI\", \"idempotencyKey\": \"IDEM_1001\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/payments/simulate",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "simulate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Purchase Saga & Orders",
+      "item": [
+        {
+          "name": "ORDER-001 - Direct Purchase Saga (100 KG)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"dealerId\": 2, \"farmerId\": 1, \"cropId\": 1, \"quantityKg\": 100.0, \"pricePerKg\": 30.0, \"deliveryOption\": \"DELIVERY_PARTNER\", \"paymentMethod\": \"WALLET\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders/purchase",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "purchase"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Delivery Management & Escrow",
+      "item": [
+        {
+          "name": "DEL-001 - Create Delivery Request (10 KM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\": 1, \"dealerId\": 2, \"farmerId\": 1, \"pickupLocation\": \"Erode Farm\", \"dropLocation\": \"Salem Warehouse\", \"distanceKm\": 10.0}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/deliveries/requests",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "deliveries",
+                "requests"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DEL-002 - Partner Accepts Delivery",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/deliveries/partner/{{delivery_id}}/accept?deliveryPartnerId={{partner_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "deliveries",
+                "partner",
+                "{{delivery_id}}",
+                "accept"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DEL-003 - Complete Delivery & Release Escrow",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/deliveries/tracking/{{delivery_id}}/status?status=DELIVERED",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "deliveries",
+                "tracking",
+                "{{delivery_id}}",
+                "status"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Reviews & Ratings",
+      "item": [
+        {
+          "name": "REV-001 - Post 5-Star Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\": 1, \"dealerId\": 2, \"farmerId\": 1, \"rating\": 5, \"comment\": \"Excellent quality fresh tomatoes!\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/reviews",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Reports & Analytics",
+      "item": [
+        {
+          "name": "REP-001 - Farmer Dashboard Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/reports/farmer/1",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "farmer",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "REP-002 - Admin Platform Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/reports/admin/analytics",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "admin",
+                "analytics"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Chatbot Advisory",
+      "item": [
+        {
+          "name": "BOT-001 - Price Inquiry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"userId\": 1, \"message\": \"What is the tomato mandi price in Erode?\"}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/chatbot/ask",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chatbot",
+                "ask"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

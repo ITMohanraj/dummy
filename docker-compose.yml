@@ -1,0 +1,581 @@
+networks:
+  cropdeal-net:
+    driver: bridge
+
+volumes:
+  auth-db-data:
+  user-db-data:
+  crop-db-data:
+  price-db-data:
+  order-db-data:
+  payment-db-data:
+  wallet-db-data:
+  bidding-db-data:
+  delivery-db-data:
+  notification-db-data:
+  review-db-data:
+  report-db-data:
+  audit-db-data:
+  chatbot-db-data:
+  negotiation-db-data:
+  invoice-db-data:
+
+services:
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: cropdeal-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - cropdeal-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 14 Isolated MySQL Database Containers (Database-per-Service)
+  auth-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-auth-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: auth_db
+    command: --performance-schema=OFF
+    ports:
+      - "33061:3306"
+    volumes:
+      - auth-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  user-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-user-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: user_db
+    command: --performance-schema=OFF
+    ports:
+      - "33062:3306"
+    volumes:
+      - user-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  crop-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-crop-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: crop_db
+    command: --performance-schema=OFF
+    ports:
+      - "33063:3306"
+    volumes:
+      - crop-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  price-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-price-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: price_db
+    command: --performance-schema=OFF
+    ports:
+      - "33064:3306"
+    volumes:
+      - price-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  order-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-order-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: order_db
+    command: --performance-schema=OFF
+    ports:
+      - "33065:3306"
+    volumes:
+      - order-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  payment-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-payment-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: payment_db
+    command: --performance-schema=OFF
+    ports:
+      - "33066:3306"
+    volumes:
+      - payment-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  wallet-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-wallet-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wallet_db
+    command: --performance-schema=OFF
+    ports:
+      - "33067:3306"
+    volumes:
+      - wallet-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  bidding-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-bidding-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bidding_db
+    command: --performance-schema=OFF
+    ports:
+      - "33068:3306"
+    volumes:
+      - bidding-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  delivery-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-delivery-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: delivery_db
+    command: --performance-schema=OFF
+    ports:
+      - "33069:3306"
+    volumes:
+      - delivery-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  notification-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-notification-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: notification_db
+    command: --performance-schema=OFF
+    ports:
+      - "33070:3306"
+    volumes:
+      - notification-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  review-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-review-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: review_db
+    command: --performance-schema=OFF
+    ports:
+      - "33071:3306"
+    volumes:
+      - review-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  report-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-report-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: report_db
+    command: --performance-schema=OFF
+    ports:
+      - "33072:3306"
+    volumes:
+      - report-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  audit-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-audit-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: audit_db
+    command: --performance-schema=OFF
+    ports:
+      - "33073:3306"
+    volumes:
+      - audit-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  chatbot-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-chatbot-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: chatbot_db
+    command: --performance-schema=OFF
+    ports:
+      - "33074:3306"
+    volumes:
+      - chatbot-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  negotiation-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-negotiation-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: negotiation_db
+    command: --performance-schema=OFF
+    ports:
+      - "33075:3306"
+    volumes:
+      - negotiation-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  invoice-mysql:
+    image: mysql:8.0
+    container_name: cropdeal-invoice-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: invoice_db
+    command: --performance-schema=OFF
+    ports:
+      - "33076:3306"
+    volumes:
+      - invoice-db-data:/var/lib/mysql
+    networks:
+      - cropdeal-net
+
+  # Core Infrastructure
+  config-server:
+    build: ./config-server
+    container_name: cropdeal-config-server
+    ports:
+      - "8888:8888"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+    networks:
+      - cropdeal-net
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: cropdeal-eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+    networks:
+      - cropdeal-net
+    depends_on:
+      - config-server
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: cropdeal-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - eureka-server
+
+  # Microservices
+  auth-service:
+    build: ./auth-service
+    container_name: cropdeal-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://auth-mysql:3306/auth_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - auth-mysql
+      - rabbitmq
+      - eureka-server
+
+  user-service:
+    build: ./user-service
+    container_name: cropdeal-user-service
+    ports:
+      - "8082:8082"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/user_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - user-mysql
+      - rabbitmq
+      - eureka-server
+
+  crop-service:
+    build: ./crop-service
+    container_name: cropdeal-crop-service
+    ports:
+      - "8083:8083"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://crop-mysql:3306/crop_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      PRICE_SERVICE_URL: http://price-service:8084
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - crop-mysql
+      - rabbitmq
+      - eureka-server
+
+  price-service:
+    build: ./price-service
+    container_name: cropdeal-price-service
+    ports:
+      - "8084:8084"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://price-mysql:3306/price_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - price-mysql
+      - rabbitmq
+      - eureka-server
+
+  order-service:
+    build: ./order-service
+    container_name: cropdeal-order-service
+    ports:
+      - "8085:8085"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      CROP_SERVICE_URL: http://crop-service:8083
+      PAYMENT_SERVICE_URL: http://payment-service:8086
+      WALLET_SERVICE_URL: http://wallet-service:8087
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - order-mysql
+      - rabbitmq
+      - eureka-server
+
+  payment-service:
+    build: ./payment-service
+    container_name: cropdeal-payment-service
+    ports:
+      - "8086:8086"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/payment_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - payment-mysql
+      - rabbitmq
+      - eureka-server
+
+  wallet-service:
+    build: ./wallet-service
+    container_name: cropdeal-wallet-service
+    ports:
+      - "8087:8087"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://wallet-mysql:3306/wallet_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - wallet-mysql
+      - rabbitmq
+      - eureka-server
+
+  bidding-service:
+    build: ./bidding-service
+    container_name: cropdeal-bidding-service
+    ports:
+      - "8088:8088"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://bidding-mysql:3306/bidding_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - bidding-mysql
+      - rabbitmq
+      - eureka-server
+
+  delivery-service:
+    build: ./delivery-service
+    container_name: cropdeal-delivery-service
+    ports:
+      - "8089:8089"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://delivery-mysql:3306/delivery_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      WALLET_SERVICE_URL: http://wallet-service:8087
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - delivery-mysql
+      - rabbitmq
+      - eureka-server
+
+  notification-service:
+    build: ./notification-service
+    container_name: cropdeal-notification-service
+    ports:
+      - "8090:8090"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://notification-mysql:3306/notification_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MAIL_USERNAME: ${MAIL_USERNAME:-mohanraj.k1110@gmail.com}
+      MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD:-}
+    networks:
+      - cropdeal-net
+    depends_on:
+      - notification-mysql
+      - rabbitmq
+      - eureka-server
+
+  review-service:
+    build: ./review-service
+    container_name: cropdeal-review-service
+    ports:
+      - "8091:8091"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://review-mysql:3306/review_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - review-mysql
+      - rabbitmq
+      - eureka-server
+
+  report-service:
+    build: ./report-service
+    container_name: cropdeal-report-service
+    ports:
+      - "8092:8092"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://report-mysql:3306/report_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - report-mysql
+      - rabbitmq
+      - eureka-server
+
+  audit-service:
+    build: ./audit-service
+    container_name: cropdeal-audit-service
+    ports:
+      - "8093:8093"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://audit-mysql:3306/audit_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - audit-mysql
+      - rabbitmq
+      - eureka-server
+
+  chatbot-service:
+    build: ./chatbot-service
+    container_name: cropdeal-chatbot-service
+    ports:
+      - "8094:8094"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://chatbot-mysql:3306/chatbot_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      PRICE_SERVICE_URL: http://price-service:8084
+      CROP_SERVICE_URL: http://crop-service:8083
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - chatbot-mysql
+      - eureka-server
+
+  negotiation-service:
+    build: ./negotiation-service
+    container_name: cropdeal-negotiation-service
+    ports:
+      - "8095:8095"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://negotiation-mysql:3306/negotiation_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - negotiation-mysql
+      - rabbitmq
+      - eureka-server
+
+  invoice-service:
+    build: ./invoice-service
+    container_name: cropdeal-invoice-service
+    ports:
+      - "8096:8096"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx192m -XX:+UseSerialGC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://invoice-mysql:3306/invoice_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_RABBITMQ_HOST: rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - cropdeal-net
+    depends_on:
+      - invoice-mysql
+      - rabbitmq
+      - eureka-server

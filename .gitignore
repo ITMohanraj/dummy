@@ -1,0 +1,21 @@
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# IDE & OS
+.metadata/
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.DS_Store
+Thumbs.db
+
+# Environment & Secrets
+.env
