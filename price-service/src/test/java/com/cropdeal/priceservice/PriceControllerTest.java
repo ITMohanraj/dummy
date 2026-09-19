@@ -28,6 +28,9 @@ class PriceControllerTest {
     @MockBean
     private PriceEngineService priceService;
 
+    @MockBean
+    private com.cropdeal.priceservice.service.MandiSyncScheduler mandiSyncScheduler;
+
     @Test
     void testValidatePrice_Success() throws Exception {
         PriceValidationResponse resp = PriceValidationResponse.builder()

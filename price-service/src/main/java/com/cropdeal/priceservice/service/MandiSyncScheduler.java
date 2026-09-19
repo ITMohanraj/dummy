@@ -2,14 +2,20 @@ package com.cropdeal.priceservice.service;
 
 import com.cropdeal.priceservice.entity.MandiPriceRecord;
 import com.cropdeal.priceservice.repository.MandiPriceRecordRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -18,22 +24,112 @@ import java.util.List;
 public class MandiSyncScheduler implements CommandLineRunner {
 
     private final MandiPriceRecordRepository mandiRepo;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestClient restClient = RestClient.builder().build();
+
+    @Value("${cropdeal.agmarknet.api-url:https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070}")
+    private String agmarknetApiUrl;
+
+    @Value("${cropdeal.agmarknet.api-key:579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b}")
+    private String agmarknetApiKey;
+
+    @Value("${cropdeal.agmarknet.enabled:true}")
+    private boolean agmarknetEnabled;
+
+    @Value("${cropdeal.agmarknet.limit:50}")
+    private int fetchLimit;
 
     @Override
     public void run(String... args) {
         if (mandiRepo.count() == 0) {
-            log.info("Seeding baseline Government Mandi Market Prices...");
-            seedDefaultMandiPrices();
+            log.info("Initializing baseline Government Mandi Market Prices...");
+            syncWithOfficialGovernmentPortal();
         }
     }
 
-    @Scheduled(cron = "0 0 4 * * ?") // 4 AM Daily Sync
+    @Scheduled(cron = "0 0 4 * * ?") // 4 AM Daily Scheduled Sync
     public void syncDailyGovernmentPrices() {
-        log.info("Starting scheduled daily synchronization with Government APMC Portal...");
-        seedDefaultMandiPrices();
+        log.info("Running scheduled 4 AM daily synchronization with Government APMC Portal...");
+        syncWithOfficialGovernmentPortal();
     }
 
-    private void seedDefaultMandiPrices() {
+    public int syncWithOfficialGovernmentPortal() {
+        if (!agmarknetEnabled || agmarknetApiKey == null || agmarknetApiKey.isBlank()) {
+            log.warn("Official Government Agmarknet API key not configured or disabled. Using baseline reference data.");
+            return seedDefaultMandiPrices();
+        }
+
+        try {
+            String uri = String.format("%s?api-key=%s&format=json&limit=%d",
+                    agmarknetApiUrl, agmarknetApiKey, fetchLimit);
+
+            log.info("Calling official Government Agmarknet Portal: {}", agmarknetApiUrl);
+            String responseBody = restClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(String.class);
+
+            if (responseBody != null) {
+                JsonNode root = objectMapper.readTree(responseBody);
+                JsonNode recordsNode = root.has("records") ? root.get("records") : null;
+
+                if (recordsNode != null && recordsNode.isArray() && recordsNode.size() > 0) {
+                    List<MandiPriceRecord> syncedRecords = new ArrayList<>();
+
+                    for (JsonNode item : recordsNode) {
+                        try {
+                            String commodity = item.has("commodity") ? item.get("commodity").asText() : "Unknown";
+                            String state = item.has("state") ? item.get("state").asText() : "National";
+                            String district = item.has("district") ? item.get("district").asText() : "General";
+                            String market = item.has("market") ? item.get("market").asText() : "APMC Mandi";
+                            String variety = item.has("variety") ? item.get("variety").asText() : "Standard";
+                            String grade = item.has("grade") ? item.get("grade").asText() : "A";
+
+                            BigDecimal minPrice = item.has("min_price") ? new BigDecimal(item.get("min_price").asText()) : BigDecimal.valueOf(2000);
+                            BigDecimal maxPrice = item.has("max_price") ? new BigDecimal(item.get("max_price").asText()) : BigDecimal.valueOf(3000);
+                            BigDecimal modalPrice = item.has("modal_price") ? new BigDecimal(item.get("modal_price").asText()) : BigDecimal.valueOf(2500);
+
+                            // Mandi prices are in ?/Quintal (100 KG) -> convert to ?/KG
+                            BigDecimal pricePerKg = modalPrice.divide(BigDecimal.valueOf(100.0), 2, RoundingMode.HALF_UP);
+
+                            MandiPriceRecord record = MandiPriceRecord.builder()
+                                    .commodity(commodity)
+                                    .normalizedCommodity(commodity.toLowerCase().trim())
+                                    .variety(variety)
+                                    .grade(grade)
+                                    .state(state)
+                                    .district(district)
+                                    .market(market)
+                                    .minPrice(minPrice)
+                                    .maxPrice(maxPrice)
+                                    .modalPrice(modalPrice)
+                                    .sourceUnit("QUINTAL")
+                                    .convertedPricePerKg(pricePerKg)
+                                    .recordDate(LocalDate.now())
+                                    .build();
+
+                            syncedRecords.add(record);
+                        } catch (Exception parseEx) {
+                            log.debug("Skipped unparseable record: {}", parseEx.getMessage());
+                        }
+                    }
+
+                    if (!syncedRecords.isEmpty()) {
+                        mandiRepo.saveAll(syncedRecords);
+                        log.info("Successfully synchronized {} live records from Government Agmarknet Portal!", syncedRecords.size());
+                        return syncedRecords.size();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Official Government Agmarknet API call failed or timed out ({}). Activating local baseline fallback...", e.getMessage());
+        }
+
+        // Automatic fallback if portal is offline or empty
+        return seedDefaultMandiPrices();
+    }
+
+    public int seedDefaultMandiPrices() {
         List<MandiPriceRecord> baseline = List.of(
                 MandiPriceRecord.builder().commodity("Onion").normalizedCommodity("onion").variety("Nasik Red").grade("A")
                         .state("Tamil Nadu").district("Erode").market("Erode Mandi")
@@ -57,6 +153,7 @@ public class MandiSyncScheduler implements CommandLineRunner {
         );
 
         mandiRepo.saveAll(baseline);
-        log.info("Government Mandi baseline records loaded successfully: {} commodities", baseline.size());
+        log.info("Government Mandi baseline fallback records loaded: {} commodities", baseline.size());
+        return baseline.size();
     }
 }
