@@ -33,6 +33,9 @@ class WalletControllerTest {
     @MockBean
     private WalletService walletService;
 
+    @MockBean
+    private com.cropdeal.walletservice.eventsourcing.service.EventSourcedWalletService eventSourcedService;
+
     @Autowired
     private ObjectMapper objectMapper;
 

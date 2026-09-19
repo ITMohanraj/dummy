@@ -1,11 +1,15 @@
 package com.cropdeal.cropservice;
 
+import com.cropdeal.cropservice.command.CreateCropCommand;
+import com.cropdeal.cropservice.command.CropCommandHandler;
+import com.cropdeal.cropservice.command.RestockCropCommand;
 import com.cropdeal.cropservice.controller.CropController;
 import com.cropdeal.cropservice.dto.CropCreateRequest;
 import com.cropdeal.cropservice.dto.CropResponse;
 import com.cropdeal.cropservice.entity.CropCategory;
 import com.cropdeal.cropservice.entity.CropStatus;
-import com.cropdeal.cropservice.service.CropService;
+import com.cropdeal.cropservice.query.CropQueryHandler;
+import com.cropdeal.cropservice.query.GetAllCropsQuery;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -20,7 +24,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,7 +38,10 @@ class CropControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private CropService cropService;
+    private CropCommandHandler commandHandler;
+
+    @MockBean
+    private CropQueryHandler queryHandler;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -61,13 +67,12 @@ class CropControllerTest {
                 .status(CropStatus.ACTIVE)
                 .build();
 
-        Mockito.when(cropService.createCrop(any(CropCreateRequest.class))).thenReturn(response);
+        Mockito.when(commandHandler.handle(any(CreateCropCommand.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/crops")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                
                 .andExpect(jsonPath("$.cropName").value("Tomato"))
                 .andExpect(jsonPath("$.cropId").value(101));
     }
@@ -81,12 +86,11 @@ class CropControllerTest {
                 .status(CropStatus.ACTIVE)
                 .build();
 
-        Mockito.when(cropService.restockCrop(eq(101L), eq(300.0))).thenReturn(response);
+        Mockito.when(commandHandler.handle(any(RestockCropCommand.class))).thenReturn(response);
 
         mockMvc.perform(patch("/api/v1/crops/101/restock")
                         .param("addedQuantityKg", "300.0"))
                 .andExpect(status().isOk())
-                
                 .andExpect(jsonPath("$.availableQuantityKg").value(800.0));
     }
 
@@ -99,7 +103,7 @@ class CropControllerTest {
                 .status(CropStatus.ACTIVE)
                 .build();
 
-        Mockito.when(cropService.getAllCrops()).thenReturn(List.of(response));
+        Mockito.when(queryHandler.handle(any(GetAllCropsQuery.class))).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/crops"))
                 .andExpect(status().isOk())

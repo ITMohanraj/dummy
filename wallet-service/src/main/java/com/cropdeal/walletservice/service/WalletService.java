@@ -1,12 +1,14 @@
 package com.cropdeal.walletservice.service;
 
+import com.cropdeal.walletservice.dto.DebitRequest;
 import com.cropdeal.walletservice.dto.EscrowHoldRequest;
 import com.cropdeal.walletservice.dto.EscrowReleaseRequest;
-import com.cropdeal.walletservice.dto.DebitRequest;
 import com.cropdeal.walletservice.dto.TopUpRequest;
 import com.cropdeal.walletservice.entity.DeliveryEscrowHold;
 import com.cropdeal.walletservice.entity.UserWallet;
 import com.cropdeal.walletservice.entity.WalletTransaction;
+import com.cropdeal.walletservice.eventsourcing.event.*;
+import com.cropdeal.walletservice.eventsourcing.service.EventSourcedWalletService;
 import com.cropdeal.walletservice.repository.DeliveryEscrowHoldRepository;
 import com.cropdeal.walletservice.repository.UserWalletRepository;
 import com.cropdeal.walletservice.repository.WalletTransactionRepository;
@@ -19,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,23 +31,37 @@ public class WalletService {
     private final WalletTransactionRepository txnRepo;
     private final DeliveryEscrowHoldRepository escrowRepo;
     private final RabbitTemplate rabbitTemplate;
+    private final EventSourcedWalletService eventSourcedService;
 
+    @Transactional
     public UserWallet getOrCreateWallet(Long userId, String role) {
         return walletRepo.findByUserId(userId)
-                .orElseGet(() -> walletRepo.save(UserWallet.builder()
-                        .userId(userId)
-                        .role(role != null ? role : "USER")
-                        .balance(BigDecimal.ZERO) // Initial seed test funds
-                        .currency("INR")
-                        .status("ACTIVE")
-                        .build()));
+                .orElseGet(() -> {
+                    UserWallet newWallet = walletRepo.save(UserWallet.builder()
+                            .userId(userId)
+                            .role(role != null ? role : "USER")
+                            .balance(BigDecimal.ZERO)
+                            .currency("INR")
+                            .status("ACTIVE")
+                            .build());
+
+                    // Append WALLET_CREATED to Event Store
+                    eventSourcedService.appendEvent(userId, "WALLET_CREATED", WalletCreatedEvent.builder()
+                            .userId(userId)
+                            .role(newWallet.getRole())
+                            .initialBalance(newWallet.getBalance())
+                            .currency(newWallet.getCurrency())
+                            .build());
+
+                    return newWallet;
+                });
     }
 
     @Transactional
     public UserWallet debitBalance(Long userId, DebitRequest req) {
         UserWallet wallet = getOrCreateWallet(userId, "DEALER");
         if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient wallet balance. Available: ₹" + wallet.getBalance() + ", Requested: ₹" + req.getAmount());
+            throw new RuntimeException("Insufficient wallet balance. Available: ?" + wallet.getBalance() + ", Requested: ?" + req.getAmount());
         }
 
         wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
@@ -61,9 +76,19 @@ public class WalletService {
                 .status("SUCCESS")
                 .build());
 
+        // Append BALANCE_DEBITED to Event Store
+        eventSourcedService.appendEvent(userId, "BALANCE_DEBITED", BalanceDebitedEvent.builder()
+                .userId(userId)
+                .amount(req.getAmount())
+                .referenceId("WITHDRAW_" + System.currentTimeMillis())
+                .referenceType(req.getReason() != null ? req.getReason() : "WITHDRAW")
+                .resultingBalance(saved.getBalance())
+                .build());
+
         return saved;
     }
 
+    @Transactional
     public UserWallet topUpBalance(Long userId, TopUpRequest req) {
         UserWallet wallet = getOrCreateWallet(userId, "DEALER");
         wallet.setBalance(wallet.getBalance().add(req.getAmount()));
@@ -78,6 +103,15 @@ public class WalletService {
                 .status("SUCCESS")
                 .build());
 
+        // Append BALANCE_CREDITED to Event Store
+        eventSourcedService.appendEvent(userId, "BALANCE_CREDITED", BalanceCreditedEvent.builder()
+                .userId(userId)
+                .amount(req.getAmount())
+                .referenceId("TOPUP_" + System.currentTimeMillis())
+                .referenceType("TOPUP")
+                .resultingBalance(saved.getBalance())
+                .build());
+
         return saved;
     }
 
@@ -85,7 +119,7 @@ public class WalletService {
     public void holdDeliveryEscrow(EscrowHoldRequest req) {
         UserWallet dealerWallet = getOrCreateWallet(req.getDealerId(), "DEALER");
         if (dealerWallet.getBalance().compareTo(req.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient wallet balance for delivery fee: ₹" + req.getAmount());
+            throw new RuntimeException("Insufficient wallet balance for delivery fee: ?" + req.getAmount());
         }
 
         // Debit dealer wallet
@@ -110,7 +144,16 @@ public class WalletService {
                 .status("HELD")
                 .build();
         escrowRepo.save(hold);
-        log.info("Delivery escrow of ₹{} held for Delivery ID: {}", req.getAmount(), req.getDeliveryId());
+
+        // Append ESCROW_HELD to Event Store
+        eventSourcedService.appendEvent(req.getDealerId(), "ESCROW_HELD", EscrowHeldEvent.builder()
+                .deliveryId(req.getDeliveryId())
+                .orderId(req.getOrderId())
+                .dealerId(req.getDealerId())
+                .amount(req.getAmount())
+                .build());
+
+        log.info("Delivery escrow of ?{} held for Delivery ID: {}", req.getAmount(), req.getDeliveryId());
     }
 
     @Transactional
@@ -141,7 +184,14 @@ public class WalletService {
         hold.setReleasedAt(LocalDateTime.now());
         escrowRepo.save(hold);
 
-        log.info("Delivery escrow released! ₹{} credited to Delivery Partner: {}", hold.getAmount(), req.getDeliveryPartnerId());
+        // Append ESCROW_RELEASED to Event Store
+        eventSourcedService.appendEvent(req.getDeliveryPartnerId(), "ESCROW_RELEASED", EscrowReleasedEvent.builder()
+                .deliveryId(req.getDeliveryId())
+                .deliveryPartnerId(req.getDeliveryPartnerId())
+                .amount(hold.getAmount())
+                .build());
+
+        log.info("Delivery escrow released! ?{} credited to Delivery Partner: {}", hold.getAmount(), req.getDeliveryPartnerId());
     }
 
     public List<WalletTransaction> getTransactions(Long userId) {

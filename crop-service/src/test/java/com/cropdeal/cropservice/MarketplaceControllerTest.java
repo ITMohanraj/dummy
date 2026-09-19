@@ -4,7 +4,9 @@ import com.cropdeal.cropservice.controller.MarketplaceController;
 import com.cropdeal.cropservice.dto.CropResponse;
 import com.cropdeal.cropservice.entity.CropCategory;
 import com.cropdeal.cropservice.entity.CropStatus;
-import com.cropdeal.cropservice.service.CropService;
+import com.cropdeal.cropservice.query.CropQueryHandler;
+import com.cropdeal.cropservice.query.FindNearbyCropsQuery;
+import com.cropdeal.cropservice.query.GetCropByIdQuery;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -29,7 +31,7 @@ class MarketplaceControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private CropService cropService;
+    private CropQueryHandler queryHandler;
 
     @Test
     void testGetCropById_Success() throws Exception {
@@ -41,11 +43,10 @@ class MarketplaceControllerTest {
                 .status(CropStatus.ACTIVE)
                 .build();
 
-        Mockito.when(cropService.getCropById(50L)).thenReturn(response);
+        Mockito.when(queryHandler.handle(any(GetCropByIdQuery.class))).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/crops/50"))
                 .andExpect(status().isOk())
-                
                 .andExpect(jsonPath("$.cropName").value("Wheat"));
     }
 
@@ -58,14 +59,13 @@ class MarketplaceControllerTest {
                 .longitude(77.7172)
                 .build();
 
-        Mockito.when(cropService.findNearbyCrops(eq(11.34), eq(77.71), eq(50.0))).thenReturn(List.of(response));
+        Mockito.when(queryHandler.handle(any(FindNearbyCropsQuery.class))).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/crops/nearby")
                         .param("latitude", "11.34")
                         .param("longitude", "77.71")
                         .param("radiusKm", "50.0"))
                 .andExpect(status().isOk())
-                
                 .andExpect(jsonPath("$[0].cropName").value("Rice"));
     }
 }

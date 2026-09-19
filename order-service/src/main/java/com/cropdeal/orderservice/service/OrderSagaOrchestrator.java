@@ -57,14 +57,9 @@ public class OrderSagaOrchestrator {
                 .build();
         CropOrder savedOrder = orderRepo.save(order);
 
-        // 2. Step: Reserve Crop Quantity in crop-service
+        // 2. Step: Reserve Crop Quantity in crop-service with Circuit Breaker
         try {
-            webClientBuilder.build().post()
-                    .uri(cropServiceUrl + "/api/v1/crops/inventory/reserve")
-                    .bodyValue(Map.of("cropId", req.getCropId(), "quantityKg", req.getQuantityKg()))
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block();
+            reserveCropInventoryWithCircuitBreaker(req.getCropId(), req.getQuantityKg());
             log.info("Crop quantity reserved successfully in crop-service.");
         } catch (Exception e) {
             log.error("Failed to reserve crop quantity: {}", e.getMessage());
@@ -122,6 +117,23 @@ public class OrderSagaOrchestrator {
         }
 
         return mapToResponse(saved);
+    }
+
+    @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "cropService", fallbackMethod = "cropInventoryFallback")
+    @io.github.resilience4j.retry.annotation.Retry(name = "cropService")
+    public void reserveCropInventoryWithCircuitBreaker(Long cropId, Double quantityKg) {
+        webClientBuilder.build().post()
+                .uri(cropServiceUrl + "/api/v1/crops/inventory/reserve")
+                .bodyValue(Map.of("cropId", cropId, "quantityKg", quantityKg))
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+    }
+
+    public void cropInventoryFallback(Long cropId, Double quantityKg, Throwable ex) {
+        log.warn("Resilience4j Circuit Breaker / Retry triggered for crop-service reservation. CropId: {}, Quantity: {}, Error: {}",
+                cropId, quantityKg, ex.getMessage());
+        throw new RuntimeException("Crop Service is currently unavailable or inventory reservation timed out. Error: " + ex.getMessage(), ex);
     }
 
     private OrderResponse mapToResponse(CropOrder o) {

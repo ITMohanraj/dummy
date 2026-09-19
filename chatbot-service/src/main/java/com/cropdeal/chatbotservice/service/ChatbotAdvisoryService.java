@@ -173,13 +173,9 @@ public class ChatbotAdvisoryService {
         Double avgMarketplacePrice = null;
         Double totalStockKg = 0.0;
 
-        // Query price-service
+        // Query price-service via CircuitBreaker
         try {
-            String priceJson = restClient.get()
-                    .uri(priceServiceUrl + "/api/v1/prices/validate?cropName={crop}&state=Tamil Nadu&district=Erode&grade=A&pricePerKg=1", capitalizedCrop)
-                    .retrieve()
-                    .body(String.class);
-
+            String priceJson = fetchPriceJson(capitalizedCrop);
             if (priceJson != null) {
                 JsonNode node = objectMapper.readTree(priceJson);
                 if (node.has("referencePrice")) refPrice = node.get("referencePrice").asDouble();
@@ -190,13 +186,9 @@ public class ChatbotAdvisoryService {
             log.warn("Price-service lookup fallback for {}: {}", queryCrop, e.getMessage());
         }
 
-        // Query crop-service for live listings
+        // Query crop-service for live listings via CircuitBreaker
         try {
-            String cropJson = restClient.get()
-                    .uri(cropServiceUrl + "/api/v1/crops/search?cropName={crop}&page=0&size=20", capitalizedCrop)
-                    .retrieve()
-                    .body(String.class);
-
+            String cropJson = fetchCropJson(capitalizedCrop);
             if (cropJson != null) {
                 JsonNode root = objectMapper.readTree(cropJson);
                 JsonNode content = root.has("content") ? root.get("content") : root;
@@ -283,5 +275,35 @@ public class ChatbotAdvisoryService {
                 .suggestedActions(List.of("Fertilizer Schedule", "Organic Pest Spray", "Check " + capCrop + " Market Price"))
                 .apiReference("GET /api/v1/prices/validate?cropName=" + capCrop)
                 .build();
+    }
+
+    @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "priceService", fallbackMethod = "fetchPriceJsonFallback")
+    @io.github.resilience4j.retry.annotation.Retry(name = "priceService")
+    public String fetchPriceJson(String cropName) {
+        return restClient.get()
+                .uri(priceServiceUrl + "/api/v1/prices/validate?cropName={crop}&state=Tamil Nadu&district=Erode&grade=A&pricePerKg=1", cropName)
+                .retrieve()
+                .body(String.class);
+    }
+
+    public String fetchPriceJsonFallback(String cropName, Throwable ex) {
+        log.warn("Resilience4j Circuit Breaker triggered for Price Service. Returning cached fallback for {}. Reason: {}",
+                cropName, ex.getMessage());
+        return null;
+    }
+
+    @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "cropService", fallbackMethod = "fetchCropJsonFallback")
+    @io.github.resilience4j.retry.annotation.Retry(name = "cropService")
+    public String fetchCropJson(String cropName) {
+        return restClient.get()
+                .uri(cropServiceUrl + "/api/v1/crops/search?cropName={crop}&page=0&size=20", cropName)
+                .retrieve()
+                .body(String.class);
+    }
+
+    public String fetchCropJsonFallback(String cropName, Throwable ex) {
+        log.warn("Resilience4j Circuit Breaker triggered for Crop Service. Returning cached fallback for {}. Reason: {}",
+                cropName, ex.getMessage());
+        return null;
     }
 }
