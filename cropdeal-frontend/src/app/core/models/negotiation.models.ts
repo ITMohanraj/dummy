@@ -26,6 +26,39 @@ export interface NegotiationCreateRequest {
 }
 
 export interface CounterOfferRequest {
-  counterPricePerKg: number;
+  counterPricePerKg?: number;
+  offeredPrice?: number;
   message?: string;
 }
+
+export interface NegotiationMessage {
+  id?: number;
+  sender?: 'DEALER' | 'FARMER';
+  senderRole?: 'DEALER' | 'FARMER';
+  senderName?: string;
+  offeredPrice?: number;
+  text?: string;
+  note?: string;
+  time?: string;
+  timestamp?: string;
+}
+
+export interface NegotiationRecord {
+  id: number;
+  cropId: number;
+  cropName: string;
+  dealerId?: number;
+  farmerId?: number;
+  farmerName?: string;
+  dealerName?: string;
+  partyName?: string;
+  quantity?: number;
+  currentPrice?: number;
+  proposedPrice: number;
+  agreedPrice?: number;
+  status: string;
+  time?: string;
+  updatedAt?: string;
+  messages: NegotiationMessage[];
+}
+

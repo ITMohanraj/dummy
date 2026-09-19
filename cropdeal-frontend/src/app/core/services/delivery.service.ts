@@ -23,6 +23,22 @@ export class DeliveryService {
     return this.http.get<DeliveryRequest[]>(`${this.baseUrl}/partner/available`);
   }
 
+  getAvailableRequests(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/partner/available`);
+  }
+
+  getActiveShipments(partnerId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/partner/${partnerId}/active`);
+  }
+
+  getAssignedDeliveries(partnerId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/partner/${partnerId}/active`);
+  }
+
+  getTripHistory(partnerId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/partner/${partnerId}/history`);
+  }
+
   acceptDelivery(deliveryId: number, deliveryPartnerId: number): Observable<DeliveryRequest> {
     const params = new HttpParams().set('deliveryPartnerId', deliveryPartnerId.toString());
     return this.http.post<DeliveryRequest>(`${this.baseUrl}/partner/${deliveryId}/accept`, null, { params });
@@ -31,5 +47,9 @@ export class DeliveryService {
   updateDeliveryStatus(deliveryId: number, status: DeliveryStatus): Observable<DeliveryRequest> {
     const params = new HttpParams().set('status', status);
     return this.http.patch<DeliveryRequest>(`${this.baseUrl}/tracking/${deliveryId}/status`, null, { params });
+  }
+
+  updateShipmentStatus(deliveryId: number, status: string): Observable<any> {
+    return this.updateDeliveryStatus(deliveryId, status as DeliveryStatus);
   }
 }

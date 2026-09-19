@@ -17,3 +17,5 @@ export class CurrencyInrPipe implements PipeTransform {
     return showSymbol ? `₹${formatted}` : formatted;
   }
 }
+
+

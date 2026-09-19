@@ -36,3 +36,21 @@ export interface DeliveryRequest {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface DeliveryRecord {
+  id: number;
+  orderId: number;
+  pickupLocation: string;
+  dropLocation: string;
+  cropName: string;
+  quantity: number;
+  deliveryFee: number;
+  status: string;
+  createdAt: string;
+  deliveredAt?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  completedAt?: string;
+  currentLocation?: string;
+}
+

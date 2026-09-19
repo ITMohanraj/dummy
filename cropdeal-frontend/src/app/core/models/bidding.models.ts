@@ -43,3 +43,20 @@ export interface BidPlacementRequest {
   dealerName?: string;
   bidPricePerKg: number;
 }
+
+export interface BidRecord {
+  id: number;
+  sessionId?: number;
+  auctionId?: number;
+  cropId?: number;
+  cropName?: string;
+  bidderName?: string;
+  dealerId?: number;
+  dealerName?: string;
+  bidAmount: number;
+  quantity?: number;
+  status: string;
+  time?: string;
+  createdAt?: string;
+}
+

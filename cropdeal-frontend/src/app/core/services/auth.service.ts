@@ -40,6 +40,37 @@ export class AuthService {
     return this.currentUser()?.role ?? null;
   }
 
+  isProfileCompleted(): boolean {
+    const user = this.currentUser();
+    if (!user) return false;
+    return (user as any).isProfileCompleted ?? true;
+  }
+
+  setProfileCompleted(completed: boolean): void {
+    const user = this.currentUser();
+    if (user) {
+      const updated = { ...user, isProfileCompleted: completed };
+      localStorage.setItem(this.USER_KEY, JSON.stringify(updated));
+      this.currentUser.set(updated);
+    }
+  }
+
+  getRoleDashboardUrl(): string {
+    const role = this.getUserRole();
+    switch (role) {
+      case 'FARMER':
+        return '/farmer/dashboard';
+      case 'DEALER':
+        return '/dealer/dashboard';
+      case 'DELIVERY_PARTNER':
+        return '/delivery/dashboard';
+      case 'ADMIN':
+        return '/admin/dashboard';
+      default:
+        return '/';
+    }
+  }
+
   register(request: RegisterRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${environment.apiGatewayUrl}${environment.endpoints.auth}/register`, request)
       .pipe(
@@ -86,19 +117,5 @@ export class AuthService {
   hasRole(allowedRoles: Role[]): boolean {
     const role = this.getUserRole();
     return role ? allowedRoles.includes(role) : false;
-  }
-
-  // Quick switch for demo/testing convenience
-  switchRoleSession(role: Role, name: string, id: number) {
-    const user: AuthResponse = {
-      token: this.getToken() || 'mock-jwt-token-dev',
-      tokenType: 'Bearer',
-      userId: id,
-      email: `${role.toLowerCase()}@cropdeal.com`,
-      fullName: name,
-      role: role,
-      expiresIn: 86400
-    };
-    this.handleAuthSuccess(user);
   }
 }

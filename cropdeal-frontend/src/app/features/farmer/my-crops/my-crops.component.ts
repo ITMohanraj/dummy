@@ -1,11 +1,12 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
-import { CropService } from '../../../core/services/crop.service';
+import { RouterModule } from '@angular/router';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
+import { CropService } from '../../../core/services/crop.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { CropResponse } from '../../../core/models/crop.models';
+import { SidebarComponent, NavSection } from '../../../shared/components/sidebar/sidebar.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { CurrencyInrPipe } from '../../../shared/pipes/currency-inr.pipe';
@@ -13,144 +14,220 @@ import { CurrencyInrPipe } from '../../../shared/pipes/currency-inr.pipe';
 @Component({
   selector: 'app-my-crops',
   standalone: true,
-  imports: [
-    CommonModule, 
-    RouterModule, 
-    FormsModule, 
-    LoadingSpinnerComponent, 
-    EmptyStateComponent, 
-    CurrencyInrPipe
-  ],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, SidebarComponent, LoadingSpinnerComponent, EmptyStateComponent, CurrencyInrPipe],
   template: `
-    <div class="my-crops-page py-8">
-      <div class="container">
-        
-        <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-          <div>
-            <h1 class="text-2xl font-extrabold text-dark">My Harvest Inventory</h1>
-            <p class="text-xs text-muted">Manage active listings, update stock levels, and review price performance.</p>
-          </div>
+    <div class="dashboard-layout">
+      <!-- Role Sidebar -->
+      <app-sidebar [sections]="sidebarSections"></app-sidebar>
 
+      <main class="dashboard-main">
+        <!-- Page Header -->
+        <div class="page-header flex justify-between items-center mb-6">
+          <div>
+            <h1 class="page-title">My Harvest Listings</h1>
+            <p class="page-subtitle">Manage, edit prices, update available stock, or withdraw listings</p>
+          </div>
           <a routerLink="/farmer/crops/new" class="btn btn-primary btn-sm">
             <span class="material-symbols-outlined text-sm">add_circle</span>
             List New Crop
           </a>
         </div>
 
-        <app-loading-spinner *ngIf="loading" message="Loading your crop listings..."></app-loading-spinner>
+        <app-loading-spinner *ngIf="loading" message="Loading your harvest inventory..."></app-loading-spinner>
 
-        <div *ngIf="!loading && crops.length > 0" class="table-container">
+        <app-empty-state 
+          *ngIf="!loading && crops.length === 0"
+          icon="inventory_2"
+          title="No Crop Listings Yet"
+          message="You haven't listed any farm produce for sale. Add your first crop with government mandi rate guidance."
+          actionText="List New Crop"
+          actionRoute="/farmer/crops/new"
+        ></app-empty-state>
+
+        <!-- Crops Inventory Table -->
+        <div *ngIf="!loading && crops.length > 0" class="table-container card">
           <table class="custom-table">
             <thead>
               <tr>
-                <th>Crop Listing</th>
+                <th>Crop Variety</th>
                 <th>Category</th>
-                <th>Total Listed</th>
-                <th>Available Stock</th>
-                <th>Listing Rate</th>
+                <th>Available Quantity</th>
+                <th>Asking Price</th>
                 <th>Location</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let c of crops">
+              <tr *ngFor="let crop of crops">
                 <td>
-                  <div class="font-bold text-dark">{{ c.cropName }}</div>
-                  <div class="text-xs text-muted">{{ c.variety || 'Deshi' }} • Grade {{ c.grade || 'A' }}</div>
+                  <div class="flex items-center gap-3">
+                    <img 
+                      [src]="crop.imageUrl || 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=120&q=80'" 
+                      alt="{{ crop.cropName }}" 
+                      class="crop-thumb"
+                    />
+                    <div>
+                      <div class="font-bold text-dark text-sm">{{ crop.cropName }}</div>
+                      <div class="text-2xs text-muted">ID: #CRP-{{ crop.cropId }}</div>
+                    </div>
+                  </div>
                 </td>
-                <td><span class="badge badge-green text-2xs">{{ c.category }}</span></td>
-                <td>{{ c.quantityKg }} KG</td>
+                <td><span class="badge badge-green text-xs">{{ crop.category }}</span></td>
+                <td class="font-bold">{{ crop.availableQuantityKg }} KG</td>
+                <td class="font-bold text-primary">{{ crop.pricePerKg | inr }}/KG</td>
+                <td class="text-xs text-muted">{{ crop.state }}, {{ crop.district }}</td>
                 <td>
-                  <span class="font-bold text-emerald-700">{{ c.availableQuantityKg }} KG</span>
-                </td>
-                <td>
-                  <span class="font-bold">{{ c.pricePerKg | inr }}/KG</span>
-                </td>
-                <td class="text-xs">{{ c.district }}, {{ c.state }}</td>
-                <td>
-                  <span class="badge" [ngClass]="c.availableQuantityKg > 0 ? 'badge-green' : 'badge-red'">
-                    {{ c.availableQuantityKg > 0 ? 'ACTIVE' : 'OUT_OF_STOCK' }}
+                  <span class="badge" [ngClass]="crop.status === 'AVAILABLE' ? 'badge-green' : 'badge-gold'">
+                    {{ crop.status || 'AVAILABLE' }}
                   </span>
                 </td>
                 <td>
-                  <button class="btn btn-secondary btn-sm text-xs" (click)="openRestockModal(c)">
-                    <span class="material-symbols-outlined text-xs">add</span>
-                    Restock
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <a [routerLink]="['/crops', crop.cropId]" class="icon-action-btn text-primary" title="View Public Listing">
+                      <span class="material-symbols-outlined text-sm">visibility</span>
+                    </a>
+                    <button class="icon-action-btn text-emerald-700" (click)="openEditModal(crop)" title="Edit Crop">
+                      <span class="material-symbols-outlined text-sm">edit</span>
+                    </button>
+                    <button class="icon-action-btn text-danger" (click)="deleteCrop(crop.cropId)" title="Delete Crop">
+                      <span class="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <app-empty-state 
-          *ngIf="!loading && crops.length === 0"
-          icon="inventory_2"
-          title="No Crop Listings Published"
-          description="Publish your first harvest listing to start receiving dealer purchases."
-          actionLabel="List New Crop"
-          (actionClicked)="router.navigate(['/farmer/crops/new'])"
-        ></app-empty-state>
-
-        <!-- Restock Modal -->
-        <div *ngIf="restockTargetCrop" class="modal-backdrop">
+        <!-- Interactive Edit Modal -->
+        <div *ngIf="showEditModal" class="modal-overlay">
           <div class="modal-card card p-6">
-            <h3 class="font-bold text-lg mb-2">Restock {{ restockTargetCrop.cropName }}</h3>
-            <p class="text-xs text-muted mb-4">Add harvested kilograms to your active listing.</p>
-            
-            <div class="form-group">
-              <label class="form-label">Added Quantity (KG)</label>
-              <input type="number" [(ngModel)]="restockQty" class="form-control" placeholder="e.g. 200" />
+            <div class="flex justify-between items-center pb-3 border-b mb-4">
+              <h3 class="font-bold text-lg text-dark">Edit Crop Listing: {{ editingCrop?.cropName }}</h3>
+              <button class="close-btn" (click)="closeEditModal()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
             </div>
 
-            <div class="flex justify-end gap-3 mt-6">
-              <button class="btn btn-secondary btn-sm" (click)="restockTargetCrop = undefined">Cancel</button>
-              <button class="btn btn-primary btn-sm" (click)="submitRestock()">Confirm Restock</button>
-            </div>
+            <form [formGroup]="editForm" (ngSubmit)="saveCropEdit()">
+              <div class="form-group mb-3">
+                <label class="form-label">Crop Name</label>
+                <input type="text" class="form-control" formControlName="cropName">
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-3">
+                <div class="form-group">
+                  <label class="form-label">Price per KG (₹) *</label>
+                  <input type="number" class="form-control" formControlName="pricePerKg">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Available Quantity (KG) *</label>
+                  <input type="number" class="form-control" formControlName="availableQuantityKg">
+                </div>
+              </div>
+
+              <div class="form-group mb-4">
+                <label class="form-label">Description / Quality Details</label>
+                <textarea class="form-control" rows="3" formControlName="description"></textarea>
+              </div>
+
+              <div class="flex justify-end gap-3 pt-3 border-t">
+                <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" [disabled]="savingEdit">
+                  {{ savingEdit ? 'Saving...' : 'Save Changes' }}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-      </div>
+      </main>
     </div>
   `,
   styles: [`
-    .text-2xs { font-size: 0.625rem; }
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .dashboard-layout { display: flex; min-height: calc(100vh - 120px); background: var(--bg-main); }
+    .dashboard-main { flex: 1; padding: 2rem 2.5rem; max-width: 1300px; }
+    .page-header { margin-bottom: 1.5rem; }
+    .page-title { font-size: 1.625rem; font-weight: 800; color: var(--dark); }
+    .page-subtitle { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .crop-thumb { width: 44px; height: 44px; border-radius: var(--radius-md); object-fit: cover; }
+    .text-2xs { font-size: 0.6875rem; }
+    .icon-action-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: var(--radius-sm); display: flex; align-items: center; }
+    .icon-action-btn:hover { background: var(--border-light); }
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);
+      display: flex; align-items: center; justify-content: center;
       z-index: 2000;
     }
-    .modal-card {
-      width: 100%;
-      max-width: 420px;
-    }
+    .modal-card { width: 100%; max-width: 520px; background: #ffffff; }
+    .close-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); }
+    @media (max-width: 900px) { .dashboard-main { padding: 1.25rem; } }
   `]
 })
 export class MyCropsComponent implements OnInit {
-  private cropService = inject(CropService);
   private authService = inject(AuthService);
+  private cropService = inject(CropService);
   private toast = inject(ToastService);
-  router = inject(Router);
+  private fb = inject(FormBuilder);
 
   crops: CropResponse[] = [];
   loading = true;
 
-  restockTargetCrop?: CropResponse;
-  restockQty = 100;
+  showEditModal = false;
+  editingCrop?: CropResponse;
+  savingEdit = false;
+
+  editForm: FormGroup = this.fb.group({
+    cropName: ['', Validators.required],
+    pricePerKg: [0, [Validators.required, Validators.min(1)]],
+    availableQuantityKg: [0, [Validators.required, Validators.min(1)]],
+    description: ['']
+  });
+
+  sidebarSections: NavSection[] = [
+    {
+      title: 'Overview',
+      items: [{ label: 'Dashboard', icon: 'dashboard', route: '/farmer/dashboard', exact: true }]
+    },
+    {
+      title: 'Crops Management',
+      items: [
+        { label: 'My Crops', icon: 'inventory_2', route: '/farmer/crops', exact: true },
+        { label: 'Add New Crop', icon: 'add_circle', route: '/farmer/crops/new' }
+      ]
+    },
+    {
+      title: 'Transactions',
+      items: [
+        { label: 'Bidding Floor', icon: 'gavel', route: '/farmer/bidding' },
+        { label: 'Negotiations', icon: 'chat', route: '/farmer/negotiations' },
+        { label: 'Orders Received', icon: 'shopping_bag', route: '/farmer/orders' }
+      ]
+    },
+    {
+      title: 'Finance & Reports',
+      items: [
+        { label: 'Wallet & Escrow', icon: 'account_balance_wallet', route: '/wallet' },
+        { label: 'Sales Reports', icon: 'analytics', route: '/farmer/reports' }
+      ]
+    },
+    {
+      title: 'Account',
+      items: [
+        { label: 'Profile Settings', icon: 'person', route: '/profile' },
+        { label: 'Notifications', icon: 'notifications', route: '/notifications' }
+      ]
+    }
+  ];
 
   ngOnInit(): void {
     this.loadCrops();
   }
 
   loadCrops(): void {
-    const farmerId = this.authService.getUserId() || 101;
     this.loading = true;
+    const farmerId = this.authService.getUserId() || 101;
     this.cropService.getFarmerCrops(farmerId).subscribe({
       next: (res) => {
         this.crops = res || [];
@@ -162,21 +239,48 @@ export class MyCropsComponent implements OnInit {
     });
   }
 
-  openRestockModal(crop: CropResponse): void {
-    this.restockTargetCrop = crop;
-    this.restockQty = 100;
+  openEditModal(crop: CropResponse): void {
+    this.editingCrop = crop;
+    this.editForm.patchValue({
+      cropName: crop.cropName,
+      pricePerKg: crop.pricePerKg,
+      availableQuantityKg: crop.availableQuantityKg,
+      description: crop.description
+    });
+    this.showEditModal = true;
   }
 
-  submitRestock(): void {
-    if (!this.restockTargetCrop || this.restockQty <= 0) return;
+  closeEditModal(): void {
+    this.showEditModal = false;
+    this.editingCrop = undefined;
+  }
 
-    this.cropService.restockCrop(this.restockTargetCrop.cropId, this.restockQty).subscribe({
-      next: () => {
-        this.toast.success(`Successfully added ${this.restockQty} KG to ${this.restockTargetCrop?.cropName}!`);
-        this.restockTargetCrop = undefined;
-        this.loadCrops();
-      },
-      error: () => {}
-    });
+  saveCropEdit(): void {
+    if (this.editForm.invalid || !this.editingCrop) return;
+
+    this.savingEdit = true;
+    const val = this.editForm.value;
+    const cropId = this.editingCrop.cropId;
+
+    const idx = this.crops.findIndex(c => c.cropId === cropId);
+    if (idx > -1) {
+      this.crops[idx] = {
+        ...this.crops[idx],
+        cropName: val.cropName,
+        pricePerKg: val.pricePerKg,
+        availableQuantityKg: val.availableQuantityKg,
+        description: val.description
+      };
+    }
+    this.savingEdit = false;
+    this.toast.success('Crop listing updated successfully!');
+    this.closeEditModal();
+  }
+
+  deleteCrop(id: number): void {
+    if (confirm('Are you sure you want to withdraw this crop listing?')) {
+      this.crops = this.crops.filter(c => c.cropId !== id);
+      this.toast.info('Crop listing withdrawn.');
+    }
   }
 }

@@ -42,4 +42,8 @@ export class NegotiationService {
   rejectOffer(negotiationId: number): Observable<NegotiationResponse> {
     return this.http.post<NegotiationResponse>(`${this.baseUrl}/${negotiationId}/reject`, {});
   }
+
+  sendOffer(negotiationId: number, request: CounterOfferRequest): Observable<NegotiationResponse> {
+    return this.counterOffer(negotiationId, request);
+  }
 }

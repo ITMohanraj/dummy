@@ -1,7 +1,8 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { CropResponse } from '../../../core/models/crop.models';
+import { AuthService } from '../../../core/services/auth.service';
 import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
 
 @Component({
@@ -39,10 +40,10 @@ import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
       <!-- Card Body -->
       <div class="card-body">
         
-        <!-- Location & Farmer -->
+        <!-- Location & Farmer Origin -->
         <div class="crop-location flex items-center gap-1">
           <span class="material-symbols-outlined text-xs text-muted">location_on</span>
-          <span>{{ crop.district }}, {{ crop.state }}</span>
+          <span>{{ crop.district || 'Erode' }}, {{ crop.state || 'Tamil Nadu' }}</span>
         </div>
 
         <!-- Crop Title & Variety -->
@@ -54,7 +55,7 @@ import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
         <!-- Price Section -->
         <div class="price-box flex justify-between items-end mt-3">
           <div>
-            <span class="price-label">Farmer Price</span>
+            <span class="price-label">Farm Gate Price</span>
             <div class="price-val">{{ crop.pricePerKg | inr }}<span class="unit"> / KG</span></div>
             <div class="quintal-sub">≈ {{ (crop.pricePerKg * 100) | inr }} / Quintal</div>
           </div>
@@ -66,15 +67,24 @@ import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
           </div>
         </div>
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons: Role-Aware & Guest Friendly -->
         <div class="card-actions flex gap-2 mt-4">
-          <a [routerLink]="['/crops', crop.cropId]" class="btn btn-primary btn-sm flex-1">
-            <span class="material-symbols-outlined text-sm">shopping_cart</span>
-            Buy Direct
-          </a>
-          <a [routerLink]="['/crops', crop.cropId]" [queryParams]="{tab: 'negotiate'}" class="btn btn-secondary btn-sm" title="Negotiate Price">
-            <span class="material-symbols-outlined text-sm">handshake</span>
-          </a>
+          <ng-container *ngIf="authService.isAuthenticated()">
+            <a [routerLink]="['/crops', crop.cropId]" class="btn btn-primary btn-sm flex-1">
+              <span class="material-symbols-outlined text-sm">shopping_cart</span>
+              Buy Direct
+            </a>
+            <a [routerLink]="['/crops', crop.cropId]" [queryParams]="{tab: 'negotiate'}" class="btn btn-secondary btn-sm" title="Negotiate Counter Offer">
+              <span class="material-symbols-outlined text-sm">handshake</span>
+            </a>
+          </ng-container>
+
+          <ng-container *ngIf="!authService.isAuthenticated()">
+            <a [routerLink]="['/crops', crop.cropId]" class="btn btn-secondary btn-sm w-full text-center">
+              <span class="material-symbols-outlined text-sm">visibility</span>
+              View Details
+            </a>
+          </ng-container>
         </div>
 
       </div>
@@ -88,6 +98,8 @@ import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
       height: 100%;
       border-radius: var(--radius-lg);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      background: #ffffff;
+      border: 1px solid var(--border-light);
     }
     .crop-card:hover {
       transform: translateY(-4px);
@@ -96,7 +108,7 @@ import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
     .card-image-wrapper {
       position: relative;
       width: 100%;
-      height: 180px;
+      height: 190px;
       background: #e2e8f0;
       overflow: hidden;
     }
@@ -205,6 +217,7 @@ import { CurrencyInrPipe } from '../../pipes/currency-inr.pipe';
 })
 export class CropCardComponent {
   @Input({ required: true }) crop!: CropResponse;
+  authService = inject(AuthService);
 
   getDefaultImage(category?: string): string {
     switch (category) {

@@ -36,6 +36,26 @@ export class BiddingService {
     return this.http.get<AuctionBid[]>(`${environment.apiGatewayUrl}${environment.endpoints.bids}/auction/${auctionId}`);
   }
 
+  getFarmerBids(farmerId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiGatewayUrl}${environment.endpoints.bids}/farmer/${farmerId}`);
+  }
+
+  getDealerBids(dealerId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiGatewayUrl}${environment.endpoints.bids}/dealer/${dealerId}`);
+  }
+
+  acceptBid(bidId: number): Observable<any> {
+    return this.http.post<any>(`${environment.apiGatewayUrl}${environment.endpoints.bids}/${bidId}/accept`, {});
+  }
+
+  rejectBid(bidId: number): Observable<any> {
+    return this.http.post<any>(`${environment.apiGatewayUrl}${environment.endpoints.bids}/${bidId}/reject`, {});
+  }
+
+  cancelBid(bidId: number): Observable<any> {
+    return this.http.post<any>(`${environment.apiGatewayUrl}${environment.endpoints.bids}/${bidId}/cancel`, {});
+  }
+
   // WebSocket / STOMP Real-Time Bidding Floor
   connectWebSocket(auctionId?: number): void {
     if (this.stompClient && this.stompClient.connected) return;
