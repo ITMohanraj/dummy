@@ -4,9 +4,15 @@ import com.cropdeal.walletservice.entity.DeliveryEscrowHold;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface DeliveryEscrowHoldRepository extends JpaRepository<DeliveryEscrowHold, Long> {
     Optional<DeliveryEscrowHold> findByDeliveryId(Long deliveryId);
+    List<DeliveryEscrowHold> findByOrderId(Long orderId);
+    List<DeliveryEscrowHold> findByDealerId(Long dealerId);
+    List<DeliveryEscrowHold> findByBeneficiaryId(Long beneficiaryId);
+    List<DeliveryEscrowHold> findByStatus(String status);
 }
+

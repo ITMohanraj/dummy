@@ -13,12 +13,13 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EscrowHoldRequest {
-    @NotNull
     private Long deliveryId;
     @NotNull
     private Long orderId;
     @NotNull
     private Long dealerId;
+    private Long beneficiaryId; // Farmer ID or Delivery Partner ID
+    private String escrowType; // ORDER_PAYMENT or DELIVERY_FEE
     @NotNull
     @Positive
     private BigDecimal amount;

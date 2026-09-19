@@ -1,4 +1,4 @@
-package com.cropdeal.walletservice.dto;
+package com.cropdeal.walletservice.eventsourcing.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,10 +9,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EscrowReleaseRequest {
+public class EscrowDisputedEvent {
     private Long escrowId;
     private Long orderId;
-    private Long deliveryId;
-    private Long deliveryPartnerId;
-    private Long beneficiaryId; // Farmer ID or Delivery Partner ID
+    private Long disputedBy;
+    private String reason;
 }

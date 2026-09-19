@@ -60,6 +60,21 @@ public class WalletAggregate {
                         this.balance = this.balance.add(released);
                     }
                 }
+                case "ESCROW_REFUNDED" -> {
+                    if (data.has("refundedAmount")) {
+                        BigDecimal refunded = new BigDecimal(data.get("refundedAmount").asText());
+                        this.balance = this.balance.add(refunded);
+                    }
+                }
+                case "ESCROW_DISPUTED" -> log.info("Escrow disputed recorded on Aggregate: {}", this.userId);
+                case "ESCROW_RESOLVED" -> {
+                    if (data.has("refundAmount") && !data.get("refundAmount").isNull()) {
+                        BigDecimal ref = new BigDecimal(data.get("refundAmount").asText());
+                        if (ref.compareTo(BigDecimal.ZERO) > 0 && "DEALER".equalsIgnoreCase(this.role)) {
+                            this.balance = this.balance.add(ref);
+                        }
+                    }
+                }
                 default -> log.debug("Unknown event type: {}", event.getEventType());
             }
         } catch (Exception e) {

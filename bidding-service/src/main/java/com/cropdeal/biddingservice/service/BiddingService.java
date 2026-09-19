@@ -26,6 +26,7 @@ public class BiddingService {
     private final CropAuctionRepository auctionRepo;
     private final AuctionBidRepository bidRepo;
     private final RabbitTemplate rabbitTemplate;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public CropAuction createAuction(AuctionCreateRequest req) {
@@ -44,6 +45,22 @@ public class BiddingService {
 
         CropAuction saved = auctionRepo.save(auction);
         log.info("Created Crop Auction ID: {} for Crop: {}", saved.getId(), saved.getCropName());
+
+        // Broadcast new auction over WebSocket
+        try {
+            com.cropdeal.biddingservice.dto.WebSocketBidMessage msg = com.cropdeal.biddingservice.dto.WebSocketBidMessage.builder()
+                    .type("AUCTION_CREATED")
+                    .auctionId(saved.getId())
+                    .currentHighestBid(saved.getStartingPricePerKg())
+                    .auctionStatus(saved.getStatus().name())
+                    .timestamp(LocalDateTime.now())
+                    .message("New crop auction created: " + saved.getCropName())
+                    .build();
+            messagingTemplate.convertAndSend("/topic/auctions/live", msg);
+        } catch (Exception e) {
+            log.debug("WebSocket broadcast failed: {}", e.getMessage());
+        }
+
         return saved;
     }
 
@@ -90,6 +107,28 @@ public class BiddingService {
             log.warn("Failed to publish bid.placed event: {}", e.getMessage());
         }
 
+        // Broadcast bid over WebSocket
+        try {
+            com.cropdeal.biddingservice.dto.WebSocketBidMessage broadcastMsg = com.cropdeal.biddingservice.dto.WebSocketBidMessage.builder()
+                    .type("BID_PLACED")
+                    .auctionId(savedBid.getAuctionId())
+                    .bidId(savedBid.getId())
+                    .dealerId(savedBid.getDealerId())
+                    .bidPricePerKg(savedBid.getBidPricePerKg())
+                    .totalBidAmount(savedBid.getTotalBidAmount())
+                    .currentHighestBid(auction.getCurrentHighestBid())
+                    .winningDealerId(auction.getWinningDealerId())
+                    .auctionStatus(auction.getStatus().name())
+                    .timestamp(LocalDateTime.now())
+                    .message("New highest bid ₹" + savedBid.getBidPricePerKg() + "/KG placed!")
+                    .build();
+
+            messagingTemplate.convertAndSend("/topic/auctions/" + auction.getId() + "/bids", broadcastMsg);
+            messagingTemplate.convertAndSend("/topic/auctions/live", broadcastMsg);
+        } catch (Exception e) {
+            log.debug("WebSocket broadcast failed: {}", e.getMessage());
+        }
+
         return savedBid;
     }
 
@@ -112,6 +151,24 @@ public class BiddingService {
             ));
         } catch (Exception e) {
             log.warn("Failed to publish bid.accepted event: {}", e.getMessage());
+        }
+
+        // Broadcast over WebSocket
+        try {
+            com.cropdeal.biddingservice.dto.WebSocketBidMessage broadcastMsg = com.cropdeal.biddingservice.dto.WebSocketBidMessage.builder()
+                    .type("AUCTION_ACCEPTED")
+                    .auctionId(saved.getId())
+                    .currentHighestBid(saved.getCurrentHighestBid())
+                    .winningDealerId(saved.getWinningDealerId())
+                    .auctionStatus(saved.getStatus().name())
+                    .timestamp(LocalDateTime.now())
+                    .message("Winning bid accepted for auction #" + saved.getId())
+                    .build();
+
+            messagingTemplate.convertAndSend("/topic/auctions/" + saved.getId() + "/status", broadcastMsg);
+            messagingTemplate.convertAndSend("/topic/auctions/live", broadcastMsg);
+        } catch (Exception e) {
+            log.debug("WebSocket broadcast failed: {}", e.getMessage());
         }
 
         return saved;

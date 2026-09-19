@@ -1,5 +1,6 @@
 package com.cropdeal.walletservice.dto;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,10 +10,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EscrowReleaseRequest {
+public class EscrowRefundRequest {
     private Long escrowId;
     private Long orderId;
     private Long deliveryId;
-    private Long deliveryPartnerId;
-    private Long beneficiaryId; // Farmer ID or Delivery Partner ID
+    @NotNull
+    private Long dealerId;
+    private String reason;
 }

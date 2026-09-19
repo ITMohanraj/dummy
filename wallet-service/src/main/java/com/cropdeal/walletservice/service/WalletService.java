@@ -117,33 +117,45 @@ public class WalletService {
 
     @Transactional
     public void holdDeliveryEscrow(EscrowHoldRequest req) {
+        holdEscrow(req);
+    }
+
+    @Transactional
+    public DeliveryEscrowHold holdEscrow(EscrowHoldRequest req) {
         UserWallet dealerWallet = getOrCreateWallet(req.getDealerId(), "DEALER");
         if (dealerWallet.getBalance().compareTo(req.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient wallet balance for delivery fee: ?" + req.getAmount());
+            throw new RuntimeException("Insufficient wallet balance for escrow hold: ₹" + req.getAmount() + " (Available: ₹" + dealerWallet.getBalance() + ")");
         }
 
         // Debit dealer wallet
         dealerWallet.setBalance(dealerWallet.getBalance().subtract(req.getAmount()));
         walletRepo.save(dealerWallet);
 
+        String refType = req.getEscrowType() != null ? req.getEscrowType() : (req.getDeliveryId() != null ? "DELIVERY_ESCROW" : "ORDER_PAYMENT_ESCROW");
+        String refId = req.getDeliveryId() != null ? "DELIVERY_" + req.getDeliveryId() : "ORDER_" + req.getOrderId();
+
         txnRepo.save(WalletTransaction.builder()
                 .walletId(dealerWallet.getId())
-                .referenceId("DELIVERY_" + req.getDeliveryId())
-                .referenceType("DELIVERY_ESCROW")
+                .referenceId(refId)
+                .referenceType(refType)
                 .amount(req.getAmount())
                 .type("HELD")
                 .status("SUCCESS")
                 .build());
 
-        // Record Escrow
+        // Record Escrow Hold
         DeliveryEscrowHold hold = DeliveryEscrowHold.builder()
                 .deliveryId(req.getDeliveryId())
                 .orderId(req.getOrderId())
                 .dealerId(req.getDealerId())
+                .beneficiaryId(req.getBeneficiaryId())
+                .deliveryPartnerId(req.getDeliveryId() != null ? req.getBeneficiaryId() : null)
+                .escrowType(refType)
                 .amount(req.getAmount())
                 .status("HELD")
+                .createdAt(LocalDateTime.now())
                 .build();
-        escrowRepo.save(hold);
+        DeliveryEscrowHold saved = escrowRepo.save(hold);
 
         // Append ESCROW_HELD to Event Store
         eventSourcedService.appendEvent(req.getDealerId(), "ESCROW_HELD", EscrowHeldEvent.builder()
@@ -153,26 +165,58 @@ public class WalletService {
                 .amount(req.getAmount())
                 .build());
 
-        log.info("Delivery escrow of ?{} held for Delivery ID: {}", req.getAmount(), req.getDeliveryId());
+        log.info("Production escrow of ₹{} held (Type: {}) for Order: {}, Delivery: {}",
+                req.getAmount(), refType, req.getOrderId(), req.getDeliveryId());
+        return saved;
     }
 
     @Transactional
     public void releaseDeliveryEscrow(EscrowReleaseRequest req) {
-        DeliveryEscrowHold hold = escrowRepo.findByDeliveryId(req.getDeliveryId())
-                .orElseThrow(() -> new RuntimeException("No escrow hold found for delivery: " + req.getDeliveryId()));
+        releaseEscrow(req);
+    }
 
-        if ("RELEASED".equals(hold.getStatus())) {
-            log.info("Escrow for delivery {} already released. Idempotent skip.", req.getDeliveryId());
-            return;
+    @Transactional
+    public DeliveryEscrowHold releaseEscrow(EscrowReleaseRequest req) {
+        DeliveryEscrowHold hold;
+        if (req.getEscrowId() != null) {
+            hold = escrowRepo.findById(req.getEscrowId())
+                    .orElseThrow(() -> new RuntimeException("Escrow hold not found: " + req.getEscrowId()));
+        } else if (req.getDeliveryId() != null) {
+            hold = escrowRepo.findByDeliveryId(req.getDeliveryId())
+                    .orElseThrow(() -> new RuntimeException("No escrow hold found for delivery: " + req.getDeliveryId()));
+        } else if (req.getOrderId() != null) {
+            List<DeliveryEscrowHold> holds = escrowRepo.findByOrderId(req.getOrderId());
+            hold = holds.stream().filter(h -> "HELD".equals(h.getStatus()) || "DISPUTED".equals(h.getStatus()))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("No active escrow hold found for order: " + req.getOrderId()));
+        } else {
+            throw new RuntimeException("Must specify escrowId, deliveryId, or orderId for escrow release");
         }
 
-        UserWallet partnerWallet = getOrCreateWallet(req.getDeliveryPartnerId(), "DELIVERY_PARTNER");
-        partnerWallet.setBalance(partnerWallet.getBalance().add(hold.getAmount()));
-        walletRepo.save(partnerWallet);
+        if ("RELEASED".equals(hold.getStatus())) {
+            log.info("Escrow #{} already released. Idempotent return.", hold.getId());
+            return hold;
+        }
+
+        Long beneficiaryId = req.getBeneficiaryId() != null ? req.getBeneficiaryId() :
+                (req.getDeliveryPartnerId() != null ? req.getDeliveryPartnerId() : hold.getBeneficiaryId());
+
+        if (beneficiaryId == null) {
+            beneficiaryId = hold.getDeliveryPartnerId();
+        }
+
+        if (beneficiaryId == null) {
+            throw new RuntimeException("Beneficiary user ID must be provided to disburse released escrow funds");
+        }
+
+        String beneficiaryRole = "DELIVERY_FEE".equals(hold.getEscrowType()) ? "DELIVERY_PARTNER" : "FARMER";
+        UserWallet beneficiaryWallet = getOrCreateWallet(beneficiaryId, beneficiaryRole);
+        beneficiaryWallet.setBalance(beneficiaryWallet.getBalance().add(hold.getAmount()));
+        walletRepo.save(beneficiaryWallet);
 
         txnRepo.save(WalletTransaction.builder()
-                .walletId(partnerWallet.getId())
-                .referenceId("DELIVERY_" + req.getDeliveryId())
+                .walletId(beneficiaryWallet.getId())
+                .referenceId("ESCROW_" + hold.getId())
                 .referenceType("ESCROW_RELEASE")
                 .amount(hold.getAmount())
                 .type("CREDIT")
@@ -180,18 +224,174 @@ public class WalletService {
                 .build());
 
         hold.setStatus("RELEASED");
-        hold.setDeliveryPartnerId(req.getDeliveryPartnerId());
+        hold.setBeneficiaryId(beneficiaryId);
+        if ("DELIVERY_FEE".equals(hold.getEscrowType())) {
+            hold.setDeliveryPartnerId(beneficiaryId);
+        }
         hold.setReleasedAt(LocalDateTime.now());
-        escrowRepo.save(hold);
+        DeliveryEscrowHold saved = escrowRepo.save(hold);
 
         // Append ESCROW_RELEASED to Event Store
-        eventSourcedService.appendEvent(req.getDeliveryPartnerId(), "ESCROW_RELEASED", EscrowReleasedEvent.builder()
-                .deliveryId(req.getDeliveryId())
-                .deliveryPartnerId(req.getDeliveryPartnerId())
+        eventSourcedService.appendEvent(beneficiaryId, "ESCROW_RELEASED", EscrowReleasedEvent.builder()
+                .deliveryId(hold.getDeliveryId())
+                .deliveryPartnerId(beneficiaryId)
                 .amount(hold.getAmount())
                 .build());
 
-        log.info("Delivery escrow released! ?{} credited to Delivery Partner: {}", hold.getAmount(), req.getDeliveryPartnerId());
+        log.info("Escrow #{} released! ₹{} credited to Beneficiary {}: {}",
+                hold.getId(), hold.getAmount(), beneficiaryRole, beneficiaryId);
+        return saved;
+    }
+
+    @Transactional
+    public DeliveryEscrowHold refundEscrow(com.cropdeal.walletservice.dto.EscrowRefundRequest req) {
+        DeliveryEscrowHold hold;
+        if (req.getEscrowId() != null) {
+            hold = escrowRepo.findById(req.getEscrowId())
+                    .orElseThrow(() -> new RuntimeException("Escrow hold not found: " + req.getEscrowId()));
+        } else if (req.getOrderId() != null) {
+            List<DeliveryEscrowHold> holds = escrowRepo.findByOrderId(req.getOrderId());
+            hold = holds.stream().filter(h -> "HELD".equals(h.getStatus()) || "DISPUTED".equals(h.getStatus()))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("No refundable escrow found for order: " + req.getOrderId()));
+        } else {
+            throw new RuntimeException("Must specify escrowId or orderId to refund");
+        }
+
+        if ("REFUNDED".equals(hold.getStatus())) {
+            log.info("Escrow #{} already refunded. Idempotent return.", hold.getId());
+            return hold;
+        }
+
+        // Credit dealer wallet
+        UserWallet dealerWallet = getOrCreateWallet(req.getDealerId(), "DEALER");
+        dealerWallet.setBalance(dealerWallet.getBalance().add(hold.getAmount()));
+        walletRepo.save(dealerWallet);
+
+        txnRepo.save(WalletTransaction.builder()
+                .walletId(dealerWallet.getId())
+                .referenceId("ESCROW_REFUND_" + hold.getId())
+                .referenceType("ESCROW_REFUND")
+                .amount(hold.getAmount())
+                .type("CREDIT")
+                .status("SUCCESS")
+                .build());
+
+        hold.setStatus("REFUNDED");
+        hold.setResolutionNotes("Refunded to dealer: " + (req.getReason() != null ? req.getReason() : "Order cancelled / Delivery aborted"));
+        hold.setResolvedAt(LocalDateTime.now());
+        DeliveryEscrowHold saved = escrowRepo.save(hold);
+
+        // Append ESCROW_REFUNDED to Event Store
+        eventSourcedService.appendEvent(req.getDealerId(), "ESCROW_REFUNDED", EscrowRefundedEvent.builder()
+                .escrowId(hold.getId())
+                .orderId(hold.getOrderId())
+                .dealerId(req.getDealerId())
+                .refundedAmount(hold.getAmount())
+                .reason(req.getReason())
+                .build());
+
+        log.info("Escrow #{} refunded! ₹{} credited back to Dealer {}", hold.getId(), hold.getAmount(), req.getDealerId());
+        return saved;
+    }
+
+    @Transactional
+    public DeliveryEscrowHold disputeEscrow(com.cropdeal.walletservice.dto.EscrowDisputeRequest req) {
+        DeliveryEscrowHold hold;
+        if (req.getEscrowId() != null) {
+            hold = escrowRepo.findById(req.getEscrowId())
+                    .orElseThrow(() -> new RuntimeException("Escrow hold not found: " + req.getEscrowId()));
+        } else if (req.getOrderId() != null) {
+            List<DeliveryEscrowHold> holds = escrowRepo.findByOrderId(req.getOrderId());
+            hold = holds.stream().filter(h -> "HELD".equals(h.getStatus()))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("No active escrow found to dispute for order: " + req.getOrderId()));
+        } else {
+            throw new RuntimeException("Must provide escrowId or orderId to dispute");
+        }
+
+        hold.setStatus("DISPUTED");
+        hold.setDisputeReason(req.getReason());
+        hold.setDisputedBy(req.getDisputedBy());
+        hold.setDisputedAt(LocalDateTime.now());
+        DeliveryEscrowHold saved = escrowRepo.save(hold);
+
+        // Append ESCROW_DISPUTED to Event Store
+        eventSourcedService.appendEvent(req.getDisputedBy(), "ESCROW_DISPUTED", EscrowDisputedEvent.builder()
+                .escrowId(hold.getId())
+                .orderId(hold.getOrderId())
+                .disputedBy(req.getDisputedBy())
+                .reason(req.getReason())
+                .build());
+
+        log.warn("Escrow #{} is now DISPUTED by User {}. Reason: {}", hold.getId(), req.getDisputedBy(), req.getReason());
+        return saved;
+    }
+
+    @Transactional
+    public DeliveryEscrowHold resolveEscrow(com.cropdeal.walletservice.dto.EscrowResolveRequest req) {
+        DeliveryEscrowHold hold = escrowRepo.findById(req.getEscrowId())
+                .orElseThrow(() -> new RuntimeException("Escrow hold not found: " + req.getEscrowId()));
+
+        if (!"DISPUTED".equalsIgnoreCase(hold.getStatus()) && !"HELD".equalsIgnoreCase(hold.getStatus())) {
+            throw new RuntimeException("Cannot resolve escrow in status: " + hold.getStatus());
+        }
+
+        String resolution = req.getResolution();
+        if ("REFUND_TO_DEALER".equalsIgnoreCase(resolution)) {
+            refundEscrow(com.cropdeal.walletservice.dto.EscrowRefundRequest.builder()
+                    .escrowId(hold.getId())
+                    .dealerId(hold.getDealerId())
+                    .reason("Dispute resolution: Full refund - " + req.getNotes())
+                    .build());
+        } else if ("RELEASE_TO_BENEFICIARY".equalsIgnoreCase(resolution)) {
+            releaseEscrow(com.cropdeal.walletservice.dto.EscrowReleaseRequest.builder()
+                    .escrowId(hold.getId())
+                    .beneficiaryId(hold.getBeneficiaryId() != null ? hold.getBeneficiaryId() : hold.getDeliveryPartnerId())
+                    .build());
+        } else if ("SPLIT".equalsIgnoreCase(resolution)) {
+            BigDecimal benAmt = req.getBeneficiaryAmount() != null ? req.getBeneficiaryAmount() : hold.getAmount().divide(BigDecimal.valueOf(2));
+            BigDecimal refAmt = req.getRefundAmount() != null ? req.getRefundAmount() : hold.getAmount().subtract(benAmt);
+
+            // Credit beneficiary
+            Long benId = hold.getBeneficiaryId() != null ? hold.getBeneficiaryId() : hold.getDeliveryPartnerId();
+            if (benId != null && benAmt.compareTo(BigDecimal.ZERO) > 0) {
+                UserWallet benWallet = getOrCreateWallet(benId, "BENEFICIARY");
+                benWallet.setBalance(benWallet.getBalance().add(benAmt));
+                walletRepo.save(benWallet);
+            }
+
+            // Credit dealer refund
+            if (refAmt.compareTo(BigDecimal.ZERO) > 0) {
+                UserWallet dealerWallet = getOrCreateWallet(hold.getDealerId(), "DEALER");
+                dealerWallet.setBalance(dealerWallet.getBalance().add(refAmt));
+                walletRepo.save(dealerWallet);
+            }
+
+            hold.setStatus("RESOLVED");
+            hold.setResolutionNotes("Split resolution: Beneficiary ₹" + benAmt + ", Dealer ₹" + refAmt + ". " + req.getNotes());
+            hold.setResolvedAt(LocalDateTime.now());
+            escrowRepo.save(hold);
+        }
+
+        // Append ESCROW_RESOLVED to Event Store
+        eventSourcedService.appendEvent(hold.getDealerId(), "ESCROW_RESOLVED", EscrowResolvedEvent.builder()
+                .escrowId(hold.getId())
+                .resolution(resolution)
+                .beneficiaryAmount(req.getBeneficiaryAmount())
+                .refundAmount(req.getRefundAmount())
+                .notes(req.getNotes())
+                .build());
+
+        return hold;
+    }
+
+    public List<DeliveryEscrowHold> getEscrowsByOrderId(Long orderId) {
+        return escrowRepo.findByOrderId(orderId);
+    }
+
+    public List<DeliveryEscrowHold> getUserEscrows(Long userId) {
+        return escrowRepo.findByDealerId(userId);
     }
 
     public List<WalletTransaction> getTransactions(Long userId) {
