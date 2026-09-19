@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.gitignore
+.angular
+.vscode
+.idea
+npm-debug.log*
+yarn-error.log*
+coverage
+.editorconfig
+.prettierrc
+README.md

@@ -579,3 +579,15 @@ services:
       - invoice-mysql
       - rabbitmq
       - eureka-server
+
+  # Angular Frontend Application
+  cropdeal-frontend:
+    build: ./cropdeal-frontend
+    container_name: cropdeal-frontend
+    ports:
+      - "4200:80"
+    networks:
+      - cropdeal-net
+    depends_on:
+      - api-gateway
+
