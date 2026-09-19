@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -15,6 +17,7 @@ import org.springframework.web.client.RestClient;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +28,10 @@ public class MandiSyncScheduler implements CommandLineRunner {
 
     private final MandiPriceRecordRepository mandiRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestClient restClient = RestClient.builder().build();
+    private final RestClient restClient = RestClient.builder()
+            .defaultHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 CropDeal/1.0")
+            .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+            .build();
 
     @Value("${cropdeal.agmarknet.api-url:https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070}")
     private String agmarknetApiUrl;
@@ -59,89 +65,113 @@ public class MandiSyncScheduler implements CommandLineRunner {
             return seedDefaultMandiPrices();
         }
 
-        List<MandiPriceRecord> syncedRecords = new ArrayList<>();
-        int pageSize = 100;
-        int totalToFetch = Math.max(fetchLimit, 100);
+        List<MandiPriceRecord> totalSynced = new ArrayList<>();
+        int pageSize = 10;
+        int maxToFetch = Math.max(fetchLimit, 50);
 
-        for (int offset = 0; offset < totalToFetch; offset += pageSize) {
-            try {
-                int limit = Math.min(pageSize, totalToFetch - offset);
-                String uri = String.format("%s?api-key=%s&format=json&offset=%d&limit=%d",
-                        agmarknetApiUrl, agmarknetApiKey, offset, limit);
+        log.info("Starting paginated live fetch from Government APMC Portal up to {} records...", maxToFetch);
 
-                log.info("Calling official Government Agmarknet Portal (offset={}, limit={}): {}", offset, limit, agmarknetApiUrl);
-                String responseBody = restClient.get()
-                        .uri(uri)
-                        .retrieve()
-                        .body(String.class);
+        int consecutiveErrors = 0;
+        for (int offset = 0; offset < maxToFetch; offset += pageSize) {
+            boolean success = false;
+            for (int retry = 0; retry < 3; retry++) {
+                try {
+                    String uri = String.format("%s?api-key=%s&format=json&offset=%d&limit=%d",
+                            agmarknetApiUrl, agmarknetApiKey, offset, pageSize);
 
-                if (responseBody != null) {
-                    JsonNode root = objectMapper.readTree(responseBody);
-                    JsonNode recordsNode = root.has("records") ? root.get("records") : null;
+                    String responseBody = restClient.get()
+                            .uri(uri)
+                            .retrieve()
+                            .body(String.class);
 
-                    if (recordsNode != null && recordsNode.isArray() && recordsNode.size() > 0) {
-                        for (JsonNode item : recordsNode) {
-                            try {
-                                String commodity = item.has("commodity") ? item.get("commodity").asText() : "Unknown";
-                                String state = item.has("state") ? item.get("state").asText() : "National";
-                                String district = item.has("district") ? item.get("district").asText() : "General";
-                                String market = item.has("market") ? item.get("market").asText() : "APMC Mandi";
-                                String variety = item.has("variety") ? item.get("variety").asText() : "Standard";
-                                String grade = item.has("grade") ? item.get("grade").asText() : "A";
+                    if (responseBody != null) {
+                        JsonNode root = objectMapper.readTree(responseBody);
+                        JsonNode recordsNode = root.has("records") ? root.get("records") : null;
 
-                                BigDecimal minPrice = item.has("min_price") ? new BigDecimal(item.get("min_price").asText()) : BigDecimal.valueOf(2000);
-                                BigDecimal maxPrice = item.has("max_price") ? new BigDecimal(item.get("max_price").asText()) : BigDecimal.valueOf(3000);
-                                BigDecimal modalPrice = item.has("modal_price") ? new BigDecimal(item.get("modal_price").asText()) : BigDecimal.valueOf(2500);
+                        if (recordsNode != null && recordsNode.isArray() && recordsNode.size() > 0) {
+                            List<MandiPriceRecord> batch = new ArrayList<>();
 
-                                // Mandi prices are in ₹/Quintal (100 KG) -> convert to ₹/KG
-                                BigDecimal pricePerKg = modalPrice.divide(BigDecimal.valueOf(100.0), 2, RoundingMode.HALF_UP);
+                            for (JsonNode item : recordsNode) {
+                                try {
+                                    String commodity = item.has("commodity") ? item.get("commodity").asText() : "Unknown";
+                                    String state = item.has("state") ? item.get("state").asText() : "National";
+                                    String district = item.has("district") ? item.get("district").asText() : "General";
+                                    String market = item.has("market") ? item.get("market").asText() : "APMC Mandi";
+                                    String variety = item.has("variety") ? item.get("variety").asText() : "Standard";
+                                    String grade = item.has("grade") ? item.get("grade").asText() : "A";
 
-                                MandiPriceRecord record = MandiPriceRecord.builder()
-                                        .commodity(commodity)
-                                        .normalizedCommodity(commodity.toLowerCase().trim())
-                                        .variety(variety)
-                                        .grade(grade)
-                                        .state(state)
-                                        .district(district)
-                                        .market(market)
-                                        .minPrice(minPrice)
-                                        .maxPrice(maxPrice)
-                                        .modalPrice(modalPrice)
-                                        .sourceUnit("QUINTAL")
-                                        .convertedPricePerKg(pricePerKg)
-                                        .recordDate(LocalDate.now())
-                                        .build();
+                                    BigDecimal minPrice = item.has("min_price") ? new BigDecimal(item.get("min_price").asText()) : BigDecimal.valueOf(2000);
+                                    BigDecimal maxPrice = item.has("max_price") ? new BigDecimal(item.get("max_price").asText()) : BigDecimal.valueOf(3000);
+                                    BigDecimal modalPrice = item.has("modal_price") ? new BigDecimal(item.get("modal_price").asText()) : BigDecimal.valueOf(2500);
 
-                                syncedRecords.add(record);
-                            } catch (Exception parseEx) {
-                                log.debug("Skipped unparseable record: {}", parseEx.getMessage());
+                                    // Mandi prices are in ₹/Quintal (100 KG) -> convert to ₹/KG
+                                    BigDecimal pricePerKg = modalPrice.divide(BigDecimal.valueOf(100.0), 2, RoundingMode.HALF_UP);
+
+                                    MandiPriceRecord record = MandiPriceRecord.builder()
+                                            .commodity(commodity)
+                                            .normalizedCommodity(commodity.toLowerCase().trim())
+                                            .variety(variety)
+                                            .grade(grade)
+                                            .state(state)
+                                            .district(district)
+                                            .market(market)
+                                            .minPrice(minPrice)
+                                            .maxPrice(maxPrice)
+                                            .modalPrice(modalPrice)
+                                            .sourceUnit("QUINTAL")
+                                            .convertedPricePerKg(pricePerKg)
+                                            .recordDate(LocalDate.now())
+                                            .syncedAt(LocalDateTime.now())
+                                            .build();
+
+                                    batch.add(record);
+                                } catch (Exception parseEx) {
+                                    log.debug("Skipped unparseable record: {}", parseEx.getMessage());
+                                }
                             }
-                        }
 
-                        if (recordsNode.size() < limit) {
-                            // Reached end of available live records
-                            break;
+                            if (!batch.isEmpty()) {
+                                mandiRepo.saveAll(batch);
+                                totalSynced.addAll(batch);
+                            }
+
+                            success = true;
+                            consecutiveErrors = 0;
+
+                            if (recordsNode.size() < pageSize) {
+                                // Reached end of records
+                                return totalSynced.size();
+                            }
+                            break; // Done with this offset
                         }
-                    } else {
-                        break;
                     }
+                } catch (Exception e) {
+                    log.warn("Batch at offset={} attempt #{} failed: {}. Retrying in 1s...", offset, (retry + 1), e.getMessage());
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) {}
                 }
-                // Rate limit breathing room
-                Thread.sleep(250);
-
-            } catch (Exception e) {
-                log.warn("Government Agmarknet API batch offset={} encounter: {}. Stopping further pagination.", offset, e.getMessage());
-                break;
             }
+
+            if (!success) {
+                consecutiveErrors++;
+                if (consecutiveErrors >= 3) {
+                    log.warn("Multiple consecutive batches failed at offset={}. Halting pagination.", offset);
+                    break;
+                }
+            }
+
+            // Throttle to respect API limits
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException ignored) {}
         }
 
-        if (!syncedRecords.isEmpty()) {
-            mandiRepo.saveAll(syncedRecords);
-            log.info("Successfully synchronized {} live records from Government Agmarknet Portal!", syncedRecords.size());
-            return syncedRecords.size();
+        if (!totalSynced.isEmpty()) {
+            log.info("Successfully fetched and stored {} live records from data.gov.in!", totalSynced.size());
+            return totalSynced.size();
         }
 
-        // Automatic fallback if portal returned 0 records or encountered rate limits
         return seedDefaultMandiPrices();
     }
 
